@@ -20,6 +20,7 @@ app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static("public"));
+app.use("/uploads", express.static("uploads")); // Serve uploaded files
 
 // Route handler for root endpoint
 app.get("/", (req: Request, res: Response) => {

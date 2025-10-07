@@ -143,6 +143,43 @@ const uploadGeneralFile = async (file: Express.Multer.File) => {
   return uploadToCloudinary(file, "user-files");
 };
 
+// Function to delete a file from Cloudinary
+const deleteFromCloudinary = async (url: string): Promise<boolean> => {
+  try {
+    // Extract public_id from URL
+    // URLs look like: https://res.cloudinary.com/cloud_name/image/upload/v1234567890/folder/public_id.jpg
+    if (!url || typeof url !== "string") {
+      console.warn("Invalid URL provided for Cloudinary deletion:", url);
+      return false;
+    }
+
+    const splitUrl = url.split("/");
+    const publicIdWithExtension = splitUrl[splitUrl.length - 1];
+    const publicIdParts = publicIdWithExtension.split(".");
+
+    // Remove extension to get public_id
+    let publicId = publicIdParts[0];
+
+    // If URL has version (v1234567890), we need to get folder/public_id
+    const folderIndex = splitUrl.indexOf("upload");
+    if (folderIndex !== -1 && folderIndex + 2 < splitUrl.length) {
+      // Get everything after 'upload', excluding the version part
+      publicId = splitUrl.slice(folderIndex + 2).join("/");
+      // Remove file extension if present
+      publicId = publicId.split(".")[0];
+    }
+
+    // Destroy the image in Cloudinary
+    const result = await cloudinary.uploader.destroy(publicId);
+
+    console.log("Cloudinary delete result:", result);
+    return result.result === "ok";
+  } catch (error) {
+    console.error("Error deleting file from Cloudinary:", error);
+    return false;
+  }
+};
+
 // ✅ No Name Changes, Just Fixes
 export const fileUploader = {
   upload,
@@ -156,4 +193,5 @@ export const fileUploader = {
   uploadToCloudinary,
   uploadProfileImage,
   uploadGeneralFile,
+  deleteFromCloudinary,
 };
