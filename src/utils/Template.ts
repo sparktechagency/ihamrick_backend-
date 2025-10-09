@@ -125,7 +125,7 @@ export const LANDING_PAGE_TEMPLATE = `
   </style>
 </head>
 <body>
-  <div class="page">
+  <div class="page" style="flex-grow:1; display:flex; flex-direction:column; justify-content:center; height:100%; width:100%; align-items:center;">
     <div class="wrap">
       <header>
         <div class="badge" aria-hidden="true">PG</div>
@@ -142,10 +142,18 @@ export const LANDING_PAGE_TEMPLATE = `
             <h2>Welcome to <span class="gtext">PG-65.com</span></h2>
             <p class="lead">A simple, Server Start page for backend.</p>
           </article>
-
+          <article class="card light">
+            <h2>This Is for <span class="gtext">Dr. Irene Hamrick</span></h2>
+            <p class="lead">A simple, personal website for Dr. Irene Hamrick.</p>
+          </article>
+          
           <article class="card dark">
             <h2>This Is <span class="gtext heavy">Backend</span><br>
-                <span class="gtext">Server Site</span></h2>
+                <span class="gtext heavy">Server Site</span></h2>
+          </article>
+          <article class="card dark">
+            <h2>This Backend Server <span class="gtext heavy">Is Developed By</span><br>
+                <span class="gtext heavy">Mehedi Hasan Alif</span></h2>
           </article>
         </div>
       </section>
