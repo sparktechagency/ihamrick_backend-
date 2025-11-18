@@ -31,7 +31,7 @@ const PublicationsSchema = new Schema<IPublications>(
     },
     fileType: {
       type: String,
-      enum: ["pdf", "xlsx", "pptx", "docx", "txt"],
+      enum: ["pdf", "pptx", "docx", "txt"],
       trim: true,
     },
     status: {

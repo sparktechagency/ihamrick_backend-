@@ -16,7 +16,7 @@ const createSchema = z.object({
     .min(1, "Title cannot be empty"),
   author: z.string().min(1, "Author name cannot be empty"),
   publicationDate: z.string().min(1, "Publication date cannot be empty"),
-  fileType: z.enum(["pdf", "xlsx", "pptx", "docx", "txt"]).optional(),
+  fileType: z.enum(["pdf", "pptx", "docx", "txt"]).optional(),
   status: z
     .union([
       z.boolean(),
@@ -37,7 +37,7 @@ const updateSchema = z.object({
     .string()
     .min(1, "Publication date cannot be empty")
     .optional(),
-  fileType: z.enum(["pdf", "xlsx", "pptx", "docx", "txt"]).optional(),
+  fileType: z.enum(["pdf", "pptx", "docx", "txt"]).optional(),
   status: z
     .union([
       z.boolean(),
