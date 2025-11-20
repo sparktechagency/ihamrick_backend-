@@ -2,31 +2,37 @@ import { Server } from "http";
 import config from "./config";
 import "./shared/database";
 import app from "./app";
+import { testConnection } from "./helpers/googleCloudStorage";
 
 let server: Server;
 
 async function startServer() {
+  // Test Google Cloud Storage connection
+  try {
+    await testConnection();
+    console.log("✓ Google Cloud Storage connected successfully✨");
+  } catch (error) {
+    console.error("✗ Google Cloud Storage connection failed:", error);
+    console.error("Video upload functionality will not work!");
+  }
+
   server = app.listen(config.port, () => {
-    console.log("Server is listening on port ", config.port);
+    console.log("Server is Firing 🚀 on port ", config.port, "🔥");
   });
 }
 
 async function main() {
   await startServer();
+
   const exitHandler = () => {
     if (server) {
       server.close(() => {
         console.info("Server closed!");
-        restartServer();
+        process.exit(0);
       });
     } else {
       process.exit(1);
     }
-  };
-
-  const restartServer = () => {
-    console.info("Restarting server...");
-    main();
   };
 
   process.on("uncaughtException", (error) => {

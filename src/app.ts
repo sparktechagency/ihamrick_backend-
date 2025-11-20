@@ -9,8 +9,8 @@ import { LANDING_PAGE_TEMPLATE } from "./utils/Template";
 
 const app: Application = express();
 export const corsOptions = {
-  origin: ["http://localhost:3001", "http://localhost:3000"],
-  methods: ["GET", "POST", "PUT", "DELETE"],
+  origin: ["http://localhost:3000", "http://10.10.20.6:5173"],
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
 };
