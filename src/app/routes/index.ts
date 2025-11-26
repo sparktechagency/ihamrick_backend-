@@ -4,6 +4,7 @@ import { contactRoutes } from "../modules/contact/contact.routes";
 import { blogRoutes } from "../modules/blog/blog.routes";
 import { publicationsRoutes } from "../modules/publications/publications.routes";
 import { videosRoutes } from "../modules/videos/videos.routes";
+import { podcastRoutes } from "../modules/podcast/podcast.routes";
 
 const router = express.Router();
 
@@ -27,6 +28,10 @@ const moduleRoutes = [
   {
     path: "/videos",
     route: videosRoutes,
+  },
+  {
+    path: "/podcasts",
+    route: podcastRoutes,
   },
 ];
 

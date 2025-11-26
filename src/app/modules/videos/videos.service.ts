@@ -96,11 +96,14 @@ const getListFromDb = async (
     sortConditions.uploadDate = -1; // Default: newest first
   }
 
-  const result = await Video.find(whereConditions)
-    .sort(sortConditions)
-    .skip(skip)
-    .limit(limit);
-
+  // Apply pagination only if limit is provided
+  let query = Video.find(whereConditions).sort(sortConditions);
+  
+  if (limit > 0) {
+    query = query.skip(skip).limit(limit);
+  }
+  
+  const result = await query;
   const total = await Video.countDocuments(whereConditions);
 
   return {

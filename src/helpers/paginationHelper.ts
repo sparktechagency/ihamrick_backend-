@@ -14,9 +14,10 @@ type IOptionsResult = {
 };
 
 const calculatePagination = (options: IOptions): IOptionsResult => {
-  const page: number = Number(options.page) || 1;
-  const limit: number = Number(options.limit) || 10;
-  const skip: number = (Number(page) - 1) * limit;
+  // Only apply pagination if page or limit is explicitly provided
+  const page: number = options.page ? Number(options.page) : 1;
+  const limit: number = options.limit ? Number(options.limit) : 0; // 0 means no limit
+  const skip: number = limit > 0 ? (page - 1) * limit : 0;
 
   const sortBy: string = options.sortBy || "createdAt";
   const sortOrder: string = options.sortOrder || "desc";

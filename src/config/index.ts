@@ -25,6 +25,10 @@ export default {
   site_name: process.env.WEBSITE_NAME,
   contact_mail: process.env.CONTACT_MAIL,
 
+  // Server URL for streaming endpoints
+  serverUrl:
+    process.env.SERVER_URL || `http://localhost:${process.env.PORT || 5005}`,
+
   // Google Cloud Storage Configuration
   gcs: {
     projectId: process.env.GCS_PROJECT_ID,
@@ -38,5 +42,12 @@ export default {
 
   upload: {
     maxVideoSize: Number(process.env.MAX_VIDEO_SIZE) || 5368709120, // 5GB default
+  },
+
+  // RTMP Server Configuration for OBS streaming
+  rtmp: {
+    port: Number(process.env.RTMP_PORT) || 1935,
+    httpPort: Number(process.env.RTMP_HTTP_PORT) || 8000,
+    ffmpegPath: process.env.FFMPEG_PATH || "/usr/bin/ffmpeg",
   },
 };

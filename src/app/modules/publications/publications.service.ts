@@ -63,13 +63,15 @@ const getListFromDb = async (
     query.status = filterData.status;
   }
 
-  // Execute the query with pagination
-  const result = await Publications.find(query)
-    .sort({ [sortBy || "createdAt"]: sortOrder === "asc" ? 1 : -1 })
-    .skip(skip)
-    .limit(limit);
-
-  // Get total count for pagination metadata
+  // Execute the query with optional pagination
+  let queryExec = Publications.find(query)
+    .sort({ [sortBy || "createdAt"]: sortOrder === "asc" ? 1 : -1 });
+  
+  if (limit > 0) {
+    queryExec = queryExec.skip(skip).limit(limit);
+  }
+  
+  const result = await queryExec;
   const total = await Publications.countDocuments(query);
 
   return {
@@ -116,11 +118,14 @@ const getWebsitePublicationsList = async (
     sortConditions.createdAt = -1;
   }
 
-  const result = await Publications.find({ ...whereConditions, status: true })
-    .sort(sortConditions)
-    .skip(skip)
-    .limit(limit);
-
+  // Apply pagination only if limit is provided
+  let query = Publications.find({ ...whereConditions, status: true }).sort(sortConditions);
+  
+  if (limit > 0) {
+    query = query.skip(skip).limit(limit);
+  }
+  
+  const result = await query;
   const total = await Publications.countDocuments({
     ...whereConditions,
     status: true,

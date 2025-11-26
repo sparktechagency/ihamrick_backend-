@@ -65,11 +65,14 @@ const getListFromDb = async (
     sortConditions.createdAt = -1;
   }
 
-  const result = await Blog.find(whereConditions)
-    .sort(sortConditions)
-    .skip(skip)
-    .limit(limit);
-
+  // Apply pagination only if limit is provided
+  let query = Blog.find(whereConditions).sort(sortConditions);
+  
+  if (limit > 0) {
+    query = query.skip(skip).limit(limit);
+  }
+  
+  const result = await query;
   const total = await Blog.countDocuments(whereConditions);
 
   return {
@@ -116,11 +119,14 @@ const getWebsiteBlogList = async (
     sortConditions.createdAt = -1;
   }
 
-  const result = await Blog.find({ ...whereConditions, status: true })
-    .sort(sortConditions)
-    .skip(skip)
-    .limit(limit);
-
+  // Apply pagination only if limit is provided
+  let query = Blog.find({ ...whereConditions, status: true }).sort(sortConditions);
+  
+  if (limit > 0) {
+    query = query.skip(skip).limit(limit);
+  }
+  
+  const result = await query;
   const total = await Blog.countDocuments({ ...whereConditions, status: true });
 
   return {
