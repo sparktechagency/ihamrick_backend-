@@ -7,6 +7,7 @@ import { testConnection } from "./helpers/googleCloudStorage";
 import { corsOptions } from "./app";
 import { initializeSocketHandlers } from "./socket/socketHandler";
 import { initializeRTMPServer } from "./socket/rtmpServer";
+import { startSignedUrlRefreshJob } from "./jobs/refreshSignedUrls";
 
 let server: Server;
 let io: SocketIOServer;
@@ -52,6 +53,9 @@ async function startServer() {
     console.error("✗ RTMP Server failed to start:", error);
     console.log("  Podcast streaming will work via Socket.IO only");
   }
+
+  // Initialize signed URL refresh cron job
+  startSignedUrlRefreshJob();
 }
 
 async function main() {

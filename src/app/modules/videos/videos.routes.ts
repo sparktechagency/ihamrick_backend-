@@ -19,8 +19,8 @@ const fileFilter = (
   file: Express.Multer.File,
   cb: multer.FileFilterCallback
 ) => {
-  // Accept video files only
-  const allowedMimeTypes = [
+  // Accept video files for 'video' field
+  const allowedVideoMimeTypes = [
     "video/mp4",
     "video/mpeg",
     "video/quicktime",
@@ -30,13 +30,45 @@ const fileFilter = (
     "video/x-matroska",
   ];
 
-  if (allowedMimeTypes.includes(file.mimetype)) {
-    cb(null, true);
+  // Accept image files for 'thumbnail' or 'coverImage' field
+  const allowedImageMimeTypes = [
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "image/webp",
+    "image/gif",
+  ];
+
+  if (file.fieldname === "video") {
+    if (allowedVideoMimeTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(
+        new ApiError(
+          httpStatus.BAD_REQUEST,
+          "Only video files are allowed for video field"
+        ) as any
+      );
+    }
+  } else if (
+    file.fieldname === "thumbnail" ||
+    file.fieldname === "coverImage"
+  ) {
+    if (allowedImageMimeTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(
+        new ApiError(
+          httpStatus.BAD_REQUEST,
+          "Only image files (JPEG, PNG, WebP, GIF) are allowed for thumbnail"
+        ) as any
+      );
+    }
   } else {
     cb(
       new ApiError(
         httpStatus.BAD_REQUEST,
-        "Only video files are allowed"
+        `Unexpected field: ${file.fieldname}`
       ) as any
     );
   }
@@ -46,7 +78,7 @@ const upload = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: config.upload.maxVideoSize, // 5GB from config
+    fileSize: config.upload.maxVideoSize, // 5GB from config (applies to video)
     fieldSize: 10 * 1024 * 1024, // 10MB for text fields
   },
 });
@@ -104,7 +136,11 @@ const handleMulterError = (
 router.post(
   "/upload",
   auth(UserRole.ADMIN),
-  upload.single("video"),
+  upload.fields([
+    { name: "video", maxCount: 1 },
+    { name: "thumbnail", maxCount: 1 },
+    { name: "coverImage", maxCount: 1 }, // Alternative field name
+  ]),
   handleMulterError,
   videosController.createVideo
 );

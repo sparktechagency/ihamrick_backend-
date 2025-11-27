@@ -9,45 +9,49 @@ const parseBoolean = (value: unknown) => {
 };
 
 const createSchema = z.object({
-  title: z
-    .string({
-      required_error: "Title is required",
-    })
-    .min(1, "Title cannot be empty"),
-  author: z.string().min(1, "Author name cannot be empty"),
-  publicationDate: z.string().min(1, "Publication date cannot be empty"),
-  fileType: z.enum(["pdf", "pptx", "docx", "txt"]).optional(),
-  status: z
-    .union([
-      z.boolean(),
-      z.string().transform(parseBoolean),
-      z.any().transform((val) => parseBoolean(val)),
-    ])
-    .optional()
-    .default(true),
-  description: z.string().min(1, "Description cannot be empty"),
-  coverImage: z.string().optional(),
-  file: z.string().optional(),
+  body: z.object({
+    title: z
+      .string({
+        required_error: "Title is required",
+      })
+      .min(1, "Title cannot be empty"),
+    author: z.string().min(1, "Author name cannot be empty"),
+    publicationDate: z.string().min(1, "Publication date cannot be empty"),
+    fileType: z.enum(["pdf", "pptx", "docx", "txt"]).optional(),
+    status: z
+      .union([
+        z.boolean(),
+        z.string().transform(parseBoolean),
+        z.any().transform((val) => parseBoolean(val)),
+      ])
+      .optional()
+      .default(true),
+    description: z.string().min(1, "Description cannot be empty"),
+    coverImage: z.string().optional(),
+    file: z.string().optional(),
+  }),
 });
 
 const updateSchema = z.object({
-  title: z.string().min(1, "Title cannot be empty").optional(),
-  author: z.string().min(1, "Author name cannot be empty").optional(),
-  publicationDate: z
-    .string()
-    .min(1, "Publication date cannot be empty")
-    .optional(),
-  fileType: z.enum(["pdf", "pptx", "docx", "txt"]).optional(),
-  status: z
-    .union([
-      z.boolean(),
-      z.string().transform(parseBoolean),
-      z.any().transform((val) => parseBoolean(val)),
-    ])
-    .optional(),
-  description: z.string().min(1, "Description cannot be empty").optional(),
-  coverImage: z.string().optional(),
-  file: z.string().optional(),
+  body: z.object({
+    title: z.string().min(1, "Title cannot be empty").optional(),
+    author: z.string().min(1, "Author name cannot be empty").optional(),
+    publicationDate: z
+      .string()
+      .min(1, "Publication date cannot be empty")
+      .optional(),
+    fileType: z.enum(["pdf", "pptx", "docx", "txt"]).optional(),
+    status: z
+      .union([
+        z.boolean(),
+        z.string().transform(parseBoolean),
+        z.any().transform((val) => parseBoolean(val)),
+      ])
+      .optional(),
+    description: z.string().min(1, "Description cannot be empty").optional(),
+    coverImage: z.string().optional(),
+    file: z.string().optional(),
+  }),
 });
 
 export const publicationsValidation = {

@@ -1,6 +1,7 @@
 import { Storage } from "@google-cloud/storage";
 import config from "../config";
 import path from "path";
+import ApiError from "../errors/ApiErrors";
 
 // Initialize Google Cloud Storage
 const storage = new Storage({
@@ -10,8 +11,13 @@ const storage = new Storage({
 
 const bucket = storage.bucket(config.gcs.bucketName || "");
 
+// Constants for signed URL configuration
+const SIGNED_URL_EXPIRATION_DAYS = 7;
+const SIGNED_URL_VERSION = "v4" as const;
+
 interface UploadResult {
   publicUrl: string;
+  signedUrl: string;
   fileName: string;
   fileSize: number;
   contentType: string;
@@ -105,21 +111,37 @@ export const uploadToGCS = async (
       blobStream.on("finish", async () => {
         clearTimeout(uploadTimeout);
 
-        const publicUrl = `https://storage.googleapis.com/${config.gcs.bucketName}/${fileName}`;
+        try {
+          // Generate signed URL for secure access
+          const signedUrl = await generateSignedUrl(fileName);
+          const publicUrl = `https://storage.googleapis.com/${config.gcs.bucketName}/${fileName}`;
 
-        console.log(
-          `✅ File uploaded successfully: ${fileName} (${(
-            file.size /
-            (1024 * 1024)
-          ).toFixed(2)}MB)`
-        );
+          console.log(
+            `✅ File uploaded successfully: ${fileName} (${(
+              file.size /
+              (1024 * 1024)
+            ).toFixed(2)}MB)`
+          );
 
-        resolve({
-          publicUrl,
-          fileName,
-          fileSize: file.size,
-          contentType: file.mimetype,
-        });
+          resolve({
+            publicUrl,
+            signedUrl,
+            fileName,
+            fileSize: file.size,
+            contentType: file.mimetype,
+          });
+        } catch (signedUrlError: any) {
+          console.error("Error generating signed URL:", signedUrlError);
+          // Fallback to public URL if signed URL generation fails
+          const publicUrl = `https://storage.googleapis.com/${config.gcs.bucketName}/${fileName}`;
+          resolve({
+            publicUrl,
+            signedUrl: publicUrl,
+            fileName,
+            fileSize: file.size,
+            contentType: file.mimetype,
+          });
+        }
       });
 
       // Write the file buffer
@@ -135,6 +157,51 @@ export const uploadToGCS = async (
   }
 };
 
+/**
+ * Generate a signed URL for secure file access
+ * @param fileName - Name of the file in GCS bucket
+ * @param expiresInDays - Number of days until URL expires (default: 7)
+ * @returns Signed URL string
+ */
+const generateSignedUrl = async (
+  fileName: string,
+  expiresInDays: number = SIGNED_URL_EXPIRATION_DAYS
+): Promise<string> => {
+  try {
+    const options = {
+      version: SIGNED_URL_VERSION,
+      action: "read" as const,
+      expires: Date.now() + expiresInDays * 24 * 60 * 60 * 1000, // Convert days to milliseconds
+    };
+
+    const [signedUrl] = await bucket.file(fileName).getSignedUrl(options);
+    return signedUrl;
+  } catch (error: any) {
+    console.error("Error generating signed URL:", error);
+    throw new ApiError(500, `Failed to generate signed URL: ${error.message}`);
+  }
+};
+
+/**
+ * Refresh signed URL for an existing file
+ * @param fileName - Name of the file in GCS bucket
+ * @returns New signed URL
+ */
+export const refreshSignedUrl = async (fileName: string): Promise<string> => {
+  try {
+    // Check if file exists
+    const [exists] = await bucket.file(fileName).exists();
+    if (!exists) {
+      throw new ApiError(404, `File not found: ${fileName}`);
+    }
+
+    return await generateSignedUrl(fileName);
+  } catch (error: any) {
+    console.error("Error refreshing signed URL:", error);
+    throw error;
+  }
+};
+
 // Delete file from Google Cloud Storage
 export const deleteFromGCS = async (fileUrl: string): Promise<boolean> => {
   try {
@@ -142,7 +209,7 @@ export const deleteFromGCS = async (fileUrl: string): Promise<boolean> => {
       return false;
     }
 
-    // Extract file name from URL
+    // Extract file name from URL (handle both public URLs and signed URLs)
     const urlParts = fileUrl.split(`${config.gcs.bucketName}/`);
 
     if (urlParts.length < 2) {
@@ -150,7 +217,9 @@ export const deleteFromGCS = async (fileUrl: string): Promise<boolean> => {
       return false;
     }
 
-    const fileName = urlParts[1];
+    // Remove query parameters if present (from signed URLs)
+    const fileNameWithParams = urlParts[1];
+    const fileName = fileNameWithParams.split("?")[0];
 
     await bucket.file(fileName).delete();
     console.log(`File deleted from GCS: ${fileName}`);

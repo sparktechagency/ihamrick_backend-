@@ -3,6 +3,10 @@ import config from "../../../config";
 import path from "path";
 import { Readable } from "stream";
 
+// Signed URL configuration
+const SIGNED_URL_EXPIRATION_DAYS = 7;
+const SIGNED_URL_VERSION = "v4" as const;
+
 const storage = new Storage({
   projectId: config.gcs.projectId,
   keyFilename: path.join(process.cwd(), config.gcs.keyFile || ""),
@@ -19,9 +23,7 @@ interface AudioRecording {
 class AudioStreamService {
   private activeRecordings: Map<string, AudioRecording> = new Map();
 
-  /**
-   * Start recording audio for a podcast session
-   */
+  // Start recording audio for a podcast session
   startRecording(sessionId: string, format: string = "webm"): void {
     this.activeRecordings.set(sessionId, {
       chunks: [],
@@ -31,9 +33,7 @@ class AudioStreamService {
     console.log(`Started recording for session: ${sessionId}`);
   }
 
-  /**
-   * Append audio chunk to recording buffer
-   */
+  // Append audio chunk to recording buffer
   appendAudioChunk(sessionId: string, chunk: Buffer): boolean {
     const recording = this.activeRecordings.get(sessionId);
     if (!recording) {
@@ -44,15 +44,14 @@ class AudioStreamService {
     return true;
   }
 
-  /**
-   * Stop recording and upload to Google Cloud Storage
-   */
+  // Stop recording and upload to Google Cloud Storage
   async stopRecordingAndUpload(
     sessionId: string,
     podcastId: string,
     podcastTitle: string
   ): Promise<{
     publicUrl: string;
+    signedUrl: string;
     fileName: string;
     fileSize: number;
     duration: number;
@@ -112,14 +111,22 @@ class AudioStreamService {
           });
       });
 
-      // Get public URL (no makePublic needed with uniform bucket access)
+      // Get public URL
       const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+
+      // Generate signed URL for secure access
+      const [signedUrl] = await file.getSignedUrl({
+        version: SIGNED_URL_VERSION,
+        action: "read",
+        expires: Date.now() + SIGNED_URL_EXPIRATION_DAYS * 24 * 60 * 60 * 1000,
+      });
 
       // Cleanup recording from memory
       this.activeRecordings.delete(sessionId);
 
       return {
         publicUrl,
+        signedUrl,
         fileName,
         fileSize,
         duration,
@@ -132,9 +139,7 @@ class AudioStreamService {
     }
   }
 
-  /**
-   * Cancel recording without saving
-   */
+  // Cancel recording without saving
   cancelRecording(sessionId: string): void {
     const recording = this.activeRecordings.get(sessionId);
     if (recording) {
@@ -143,9 +148,7 @@ class AudioStreamService {
     }
   }
 
-  /**
-   * Get recording status
-   */
+  // Get recording status
   getRecordingStatus(sessionId: string): {
     isRecording: boolean;
     chunksCount: number;
@@ -168,9 +171,30 @@ class AudioStreamService {
     };
   }
 
-  /**
-   * Get content type based on format
-   */
+  // Refresh signed URL for an existing podcast recording
+  async refreshPodcastSignedUrl(fileName: string): Promise<string> {
+    try {
+      const file = bucket.file(fileName);
+      const [exists] = await file.exists();
+
+      if (!exists) {
+        throw new Error(`Podcast recording not found: ${fileName}`);
+      }
+
+      const [signedUrl] = await file.getSignedUrl({
+        version: SIGNED_URL_VERSION,
+        action: "read",
+        expires: Date.now() + SIGNED_URL_EXPIRATION_DAYS * 24 * 60 * 60 * 1000,
+      });
+
+      return signedUrl;
+    } catch (error) {
+      console.error("Error refreshing podcast signed URL:", error);
+      throw error;
+    }
+  }
+
+  // Get content type based on format
   private getContentType(format: string): string {
     const contentTypes: Record<string, string> = {
       webm: "audio/webm",
@@ -180,9 +204,7 @@ class AudioStreamService {
     return contentTypes[format] || "audio/webm";
   }
 
-  /**
-   * Cleanup all active recordings (use on server shutdown)
-   */
+  // Cleanup all active recordings (use on server shutdown)
   cleanupAllRecordings(): void {
     console.log(`Cleaning up ${this.activeRecordings.size} active recordings`);
     this.activeRecordings.clear();

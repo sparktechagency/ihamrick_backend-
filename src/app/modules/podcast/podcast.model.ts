@@ -54,6 +54,7 @@ export interface IPodcast extends Document {
 
   // Recording
   recordedAudioUrl?: string;
+  recordedSignedUrl?: string;
   recordedFileName?: string;
   audioSize?: number;
   audioFormat?: string;
@@ -171,6 +172,9 @@ const PodcastSchema = new Schema<IPodcast>(
       default: [],
     },
     recordedAudioUrl: {
+      type: String,
+    },
+    recordedSignedUrl: {
       type: String,
     },
     recordedFileName: {

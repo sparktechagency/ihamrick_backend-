@@ -16,9 +16,7 @@ interface AuthRequest extends Request {
   app: any;
 }
 
-/**
- * Create new podcast - Only title required, can update other fields later
- */
+// Create new podcast - Only title required, can update other fields later
 export const createPodcast = catchAsync(
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     const { title } = req.body;
@@ -26,7 +24,9 @@ export const createPodcast = catchAsync(
     // Handle cover image upload
     let coverImagePath = "default-podcast-cover.jpg";
     if (req.file) {
-      coverImagePath = req.file.path;
+      const { fileUploader } = await import("../../../helpers/fileUploader");
+      const uploadResult = await fileUploader.uploadToCloudinary(req.file);
+      coverImagePath = uploadResult.Location;
     }
 
     // Generate AWS IVS-compatible channel data
@@ -35,6 +35,9 @@ export const createPodcast = catchAsync(
     const podcast = await Podcast.create({
       title,
       coverImage: coverImagePath,
+      description: req.body.description,
+      transcription: req.body.transcription,
+      date: req.body.date ? new Date(req.body.date) : undefined,
       admin: req.user.id,
       status: PodcastStatus.SCHEDULED,
       ivsChannelArn: ivsChannel.arn,
@@ -64,18 +67,10 @@ export const createPodcast = catchAsync(
   }
 );
 
-/**
- * Get all podcasts with filtering
- */
+// Get all podcasts with filtering, pagination, and sorting
 export const getAllPodcasts = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
-    const {
-      status,
-      page,
-      limit,
-      sort = "-createdAt",
-      search,
-    } = req.query;
+    const { status, page, limit, sort = "-createdAt", search } = req.query;
 
     const filter: any = {};
 
@@ -149,9 +144,7 @@ export const getAllPodcasts = catchAsync(
   }
 );
 
-/**
- * Get single podcast by ID
- */
+// Get single podcast by ID
 export const getPodcast = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const podcast = await Podcast.findById(req.params.id).populate(
@@ -161,6 +154,23 @@ export const getPodcast = catchAsync(
 
     if (!podcast) {
       throw new ApiError(httpStatus.NOT_FOUND, "Podcast not found");
+    }
+
+    // Refresh signed URL if podcast has recording
+    if (podcast.recordedFileName) {
+      try {
+        const freshSignedUrl = await audioStreamService.refreshPodcastSignedUrl(
+          podcast.recordedFileName
+        );
+        podcast.recordedSignedUrl = freshSignedUrl;
+        await podcast.save();
+      } catch (error) {
+        console.error(
+          `Error refreshing signed URL for podcast ${podcast._id}:`,
+          error
+        );
+        // Continue with existing URL if refresh fails
+      }
     }
 
     // Generate appropriate streamConfig based on status
@@ -174,7 +184,7 @@ export const getPodcast = catchAsync(
         ? generateRecordedStreamConfig(
             (podcast._id as any).toString(),
             podcast.liveSessionId || "",
-            podcast.recordedAudioUrl
+            podcast.recordedSignedUrl || podcast.recordedAudioUrl
           )
         : generateStreamConfig((podcast._id as any).toString());
 
@@ -197,9 +207,7 @@ export const getPodcast = catchAsync(
   }
 );
 
-/**
- * Update podcast - Can update title, description, coverImage, transcription, date, status
- */
+// Update podcast - Can update title, description, coverImage, transcription, date, status
 export const updatePodcast = catchAsync(
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     const { title, description, transcription, date, status } = req.body;
@@ -237,7 +245,9 @@ export const updatePodcast = catchAsync(
 
     // Update cover image if provided
     if (req.file) {
-      podcast.coverImage = req.file.path;
+      const { fileUploader } = await import("../../../helpers/fileUploader");
+      const uploadResult = await fileUploader.uploadToCloudinary(req.file);
+      podcast.coverImage = uploadResult.Location;
     }
 
     await podcast.save();
@@ -257,9 +267,7 @@ export const updatePodcast = catchAsync(
   }
 );
 
-/**
- * Delete podcast
- */
+// Delete podcast
 export const deletePodcast = catchAsync(
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     const podcast = await Podcast.findById(req.params.id);
@@ -293,9 +301,7 @@ export const deletePodcast = catchAsync(
   }
 );
 
-/**
- * Start live podcast broadcast
- */
+// Start live podcast broadcast
 export const startPodcast = catchAsync(
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     const podcast = await Podcast.findById(req.params.id);
@@ -403,9 +409,7 @@ export const startPodcast = catchAsync(
   }
 );
 
-/**
- * End live podcast broadcast
- */
+// End live podcast broadcast
 export const endPodcast = catchAsync(
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     const podcast = await Podcast.findById(req.params.id);
@@ -459,6 +463,7 @@ export const endPodcast = catchAsync(
         );
 
         podcast.recordedAudioUrl = uploadResult.publicUrl;
+        podcast.recordedSignedUrl = uploadResult.signedUrl; // Store signed URL for frontend
         podcast.recordedFileName = uploadResult.fileName;
         podcast.audioSize = uploadResult.fileSize;
       } catch (error) {
@@ -504,9 +509,7 @@ export const endPodcast = catchAsync(
   }
 );
 
-/**
- * Get current live podcast
- */
+// Get current live podcast
 export const getLivePodcast = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const livePodcast = await Podcast.findOne({
@@ -535,9 +538,7 @@ export const getLivePodcast = catchAsync(
   }
 );
 
-/**
- * Get recorded podcasts
- */
+// Get recorded podcasts
 export const getRecordedPodcasts = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const { page, limit } = req.query;
@@ -564,15 +565,36 @@ export const getRecordedPodcasts = catchAsync(
       recordedAudioUrl: { $exists: true, $ne: null },
     });
 
-    // Add streamConfig to each recorded podcast
-    const podcastsWithConfig = podcasts.map((podcast) => ({
-      ...podcast.toObject(),
-      streamConfig: generateRecordedStreamConfig(
-        (podcast._id as any).toString(),
-        podcast.liveSessionId || "",
-        podcast.recordedAudioUrl || null
-      ),
-    }));
+    // Refresh signed URLs and add streamConfig to each recorded podcast
+    const podcastsWithConfig = await Promise.all(
+      podcasts.map(async (podcast) => {
+        try {
+          if (podcast.recordedFileName) {
+            const freshSignedUrl =
+              await audioStreamService.refreshPodcastSignedUrl(
+                podcast.recordedFileName
+              );
+            podcast.recordedSignedUrl = freshSignedUrl;
+            await podcast.save();
+          }
+        } catch (error) {
+          console.error(
+            `Error refreshing signed URL for podcast ${podcast._id}:`,
+            error
+          );
+          // Continue with existing URL if refresh fails
+        }
+
+        return {
+          ...podcast.toObject(),
+          streamConfig: generateRecordedStreamConfig(
+            (podcast._id as any).toString(),
+            podcast.liveSessionId || "",
+            podcast.recordedSignedUrl || podcast.recordedAudioUrl || null
+          ),
+        };
+      })
+    );
 
     res.status(httpStatus.OK).json({
       status: "success",
@@ -590,9 +612,7 @@ export const getRecordedPodcasts = catchAsync(
   }
 );
 
-/**
- * Get podcast status
- */
+// Get podcast status
 export const getPodcastStatus = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const podcast = await Podcast.findById(req.params.id);

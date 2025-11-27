@@ -4,7 +4,10 @@ import ApiError from "../../../errors/ApiErrors";
 import httpStatus from "http-status";
 import { IPaginationOptions } from "../../../interfaces/paginations";
 import { paginationHelper } from "../../../helpers/paginationHelper";
-import { deleteFromGCS } from "../../../helpers/googleCloudStorage";
+import {
+  deleteFromGCS,
+  refreshSignedUrl,
+} from "../../../helpers/googleCloudStorage";
 
 interface IVideoFilter {
   searchTerm?: string;
@@ -98,13 +101,31 @@ const getListFromDb = async (
 
   // Apply pagination only if limit is provided
   let query = Video.find(whereConditions).sort(sortConditions);
-  
+
   if (limit > 0) {
     query = query.skip(skip).limit(limit);
   }
-  
+
   const result = await query;
   const total = await Video.countDocuments(whereConditions);
+
+  // Refresh signed URLs for all videos
+  const videosWithFreshUrls = await Promise.all(
+    result.map(async (video) => {
+      try {
+        const freshSignedUrl = await refreshSignedUrl(video.fileName);
+        video.signedUrl = freshSignedUrl;
+        await video.save();
+        return video;
+      } catch (error) {
+        console.error(
+          `Error refreshing signed URL for video ${video._id}:`,
+          error
+        );
+        return video; // Return video with old URL if refresh fails
+      }
+    })
+  );
 
   return {
     meta: {
@@ -113,7 +134,7 @@ const getListFromDb = async (
       total,
       totalPages: Math.ceil(total / limit),
     },
-    data: result,
+    data: videosWithFreshUrls,
   };
 };
 
@@ -124,10 +145,28 @@ const getByIdFromDb = async (id: string, incrementView: boolean = false) => {
     throw new ApiError(httpStatus.NOT_FOUND, "Video not found");
   }
 
-  // Increment view count if requested
-  if (incrementView) {
-    result.views += 1;
+  // Refresh signed URL if fileName exists
+  try {
+    const freshSignedUrl = await refreshSignedUrl(result.fileName);
+    result.signedUrl = freshSignedUrl;
+
+    // Increment view count if requested
+    if (incrementView) {
+      result.views += 1;
+    }
+
     await result.save();
+  } catch (error) {
+    console.error(
+      `Error refreshing signed URL for video ${result._id}:`,
+      error
+    );
+
+    // Still increment view count even if URL refresh fails
+    if (incrementView) {
+      result.views += 1;
+      await result.save();
+    }
   }
 
   return result;

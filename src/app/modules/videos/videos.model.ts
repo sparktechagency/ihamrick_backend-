@@ -6,6 +6,7 @@ export interface IVideo extends Document {
   description?: string;
   transcription?: string;
   videoUrl: string;
+  signedUrl?: string;
   thumbnailUrl?: string;
   fileName: string;
   fileSize: number;
@@ -42,6 +43,9 @@ const VideoSchema = new Schema<IVideo>(
     videoUrl: {
       type: String,
       required: [true, "Video URL is required"],
+    },
+    signedUrl: {
+      type: String,
     },
     thumbnailUrl: {
       type: String,

@@ -8,26 +8,36 @@ import ApiError from "../../../errors/ApiErrors";
 
 interface MulterRequest extends Request {
   file?: Express.Multer.File;
+  files?:
+    | { [fieldname: string]: Express.Multer.File[] }
+    | Express.Multer.File[];
 }
 
 // Create/Upload a new video with enhanced error handling for 5GB files
 const createVideo = catchAsync(async (req: MulterRequest, res: Response) => {
   const videoData = req.body;
 
-  // Validate file upload
-  if (!req.file) {
+  // Get video file from files object
+  const files = req.files as
+    | { [fieldname: string]: Express.Multer.File[] }
+    | undefined;
+  const videoFile = files?.["video"]?.[0];
+  const thumbnailFile = files?.["thumbnail"]?.[0] || files?.["coverImage"]?.[0];
+
+  // Validate video file upload
+  if (!videoFile) {
     throw new ApiError(httpStatus.BAD_REQUEST, "Video file is required");
   }
 
   // Additional file validations
-  if (!req.file.buffer || req.file.buffer.length === 0) {
-    throw new ApiError(httpStatus.BAD_REQUEST, "Uploaded file is empty");
+  if (!videoFile.buffer || videoFile.buffer.length === 0) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "Uploaded video file is empty");
   }
 
-  if (req.file.size > 5368709120) {
+  if (videoFile.size > 5368709120) {
     throw new ApiError(
       httpStatus.BAD_REQUEST,
-      `File size (${(req.file.size / (1024 * 1024 * 1024)).toFixed(
+      `File size (${(videoFile.size / (1024 * 1024 * 1024)).toFixed(
         2
       )}GB) exceeds maximum limit of 5GB`
     );
@@ -105,15 +115,26 @@ const createVideo = catchAsync(async (req: MulterRequest, res: Response) => {
   }
 
   console.log(
-    `📤 Uploading video: ${req.file.originalname} (${(
-      req.file.size /
+    `📤 Uploading video: ${videoFile.originalname} (${(
+      videoFile.size /
       (1024 * 1024)
     ).toFixed(2)}MB)`
   );
 
   try {
     // Upload video to Google Cloud Storage with timeout handling
-    const uploadResult = await googleCloudStorage.uploadVideo(req.file);
+    const uploadResult = await googleCloudStorage.uploadVideo(videoFile);
+
+    // Upload thumbnail if provided
+    let thumbnailUrl = "";
+    if (thumbnailFile) {
+      console.log(`📸 Uploading thumbnail: ${thumbnailFile.originalname}`);
+      const { fileUploader } = await import("../../../helpers/fileUploader");
+      const thumbnailUploadResult = await fileUploader.uploadToCloudinary(
+        thumbnailFile
+      );
+      thumbnailUrl = thumbnailUploadResult.Location;
+    }
 
     // Prepare video data with proper type conversions
     const newVideoData = {
@@ -124,6 +145,8 @@ const createVideo = catchAsync(async (req: MulterRequest, res: Response) => {
       status: videoData.status === true || videoData.status === "true",
       duration: videoData.duration ? Number(videoData.duration) : 0,
       videoUrl: uploadResult.publicUrl,
+      signedUrl: uploadResult.signedUrl, // Store signed URL for frontend
+      thumbnailUrl: thumbnailUrl || undefined,
       fileName: uploadResult.fileName,
       fileSize: uploadResult.fileSize,
       contentType: uploadResult.contentType,
@@ -143,8 +166,8 @@ const createVideo = catchAsync(async (req: MulterRequest, res: Response) => {
   } catch (error: any) {
     console.error("Error uploading video:", {
       error: error.message,
-      fileName: req.file.originalname,
-      fileSize: req.file.size,
+      fileName: videoFile.originalname,
+      fileSize: videoFile.size,
     });
 
     // Provide specific error messages
