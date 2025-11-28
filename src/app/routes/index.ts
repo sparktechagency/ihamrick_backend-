@@ -5,6 +5,7 @@ import { blogRoutes } from "../modules/blog/blog.routes";
 import { publicationsRoutes } from "../modules/publications/publications.routes";
 import { videosRoutes } from "../modules/videos/videos.routes";
 import { podcastRoutes } from "../modules/podcast/podcast.routes";
+import { SearchRoutes } from "../modules/search/search.routes";
 
 const router = express.Router();
 
@@ -32,6 +33,10 @@ const moduleRoutes = [
   {
     path: "/podcasts",
     route: podcastRoutes,
+  },
+  {
+    path: "/search",
+    route: SearchRoutes,
   },
 ];
 
