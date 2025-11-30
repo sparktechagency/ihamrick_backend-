@@ -9,8 +9,14 @@ import { LANDING_PAGE_TEMPLATE } from "./utils/Template";
 
 const app: Application = express();
 export const corsOptions = {
-  origin: ["http://localhost:3000", "http://10.10.20.6:5173", "*"],
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+  origin: [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://10.10.20.6:5173",
+    "https://ihamrick-frontend.vercel.app",
+    "https://www.ihamrick-frontend.vercel.app",
+  ],
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
 };
