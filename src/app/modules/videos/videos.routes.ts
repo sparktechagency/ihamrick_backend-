@@ -145,8 +145,11 @@ router.post(
   videosController.createVideo
 );
 
+// Public routes
 router.get("/", videosController.getVideosList);
+router.get("/watch/:id", videosController.watchVideo);
 
+// Admin/Preview endpoint - get video details without incrementing views
 router.get("/:id", videosController.getVideoById);
 
 router.put(

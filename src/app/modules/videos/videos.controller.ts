@@ -224,11 +224,25 @@ const getVideosList = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// Get single video by ID
+// Get single video by ID (Admin preview - no view increment)
 const getVideoById = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
 
-  const result = await videosService.getByIdFromDb(id);
+  const result = await videosService.getByIdFromDb(id, false);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Video retrieved successfully",
+    data: result,
+  });
+});
+
+// Watch video (Public endpoint - increments view count)
+const watchVideo = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  const result = await videosService.getByIdFromDb(id, true);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -271,6 +285,7 @@ export const videosController = {
   createVideo,
   getVideosList,
   getVideoById,
+  watchVideo,
   updateVideo,
   deleteVideo,
 };

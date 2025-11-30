@@ -145,28 +145,21 @@ const getByIdFromDb = async (id: string, incrementView: boolean = false) => {
     throw new ApiError(httpStatus.NOT_FOUND, "Video not found");
   }
 
+  // View increment
+  if (incrementView) {
+    await Video.findByIdAndUpdate(id, { $inc: { views: 1 } }, { new: false });
+    result.views += 1; // Update local object for response
+  }
+
   // Refresh signed URL if fileName exists
   try {
     const freshSignedUrl = await refreshSignedUrl(result.fileName);
     result.signedUrl = freshSignedUrl;
-
-    // Increment view count if requested
-    if (incrementView) {
-      result.views += 1;
-    }
-
-    await result.save();
   } catch (error) {
     console.error(
       `Error refreshing signed URL for video ${result._id}:`,
       error
     );
-
-    // Still increment view count even if URL refresh fails
-    if (incrementView) {
-      result.views += 1;
-      await result.save();
-    }
   }
 
   return result;
