@@ -34,6 +34,8 @@ export default {
     projectId: process.env.GCS_PROJECT_ID,
     bucketName: process.env.GCS_BUCKET_NAME,
     keyFile: process.env.GCS_KEY_FILE,
+    clientEmail: process.env.GCS_CLIENT_EMAIL,
+    privateKey: process.env.GCS_PRIVATE_KEY?.replace(/\\n/g, "\n"), // Handle escaped newlines
     paths: {
       video: process.env.GCS_VIDEO_PATH,
       thumbnail: process.env.GCS_THUMBNAIL_PATH,
