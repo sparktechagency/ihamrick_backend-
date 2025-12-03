@@ -162,3 +162,208 @@ export const LANDING_PAGE_TEMPLATE = `
 </body>
 </html>
 `;
+
+interface INotificationData {
+  subscriberName: string;
+  counts: {
+    blogs: number;
+    publications: number;
+    videos: number;
+    podcasts: number;
+    lifeSuggestions: number;
+  };
+  livePodcasts: number;
+  websiteUrl: string;
+}
+
+export const NOTIFICATION_EMAIL_TEMPLATE = (
+  data: INotificationData
+): string => {
+  const { subscriberName, counts, livePodcasts, websiteUrl } = data;
+
+  // Build content items list
+  const contentItems: string[] = [];
+  if (counts.blogs > 0)
+    contentItems.push(
+      `${counts.blogs} new ${counts.blogs === 1 ? "blog" : "blogs"}`
+    );
+  if (counts.publications > 0)
+    contentItems.push(
+      `${counts.publications} new ${
+        counts.publications === 1 ? "publication" : "publications"
+      }`
+    );
+  if (counts.videos > 0)
+    contentItems.push(
+      `${counts.videos} new ${counts.videos === 1 ? "video" : "videos"}`
+    );
+  if (counts.podcasts > 0)
+    contentItems.push(
+      `${counts.podcasts} new ${counts.podcasts === 1 ? "podcast" : "podcasts"}`
+    );
+  if (counts.lifeSuggestions > 0)
+    contentItems.push(
+      `${counts.lifeSuggestions} new life ${
+        counts.lifeSuggestions === 1 ? "suggestion" : "suggestions"
+      }`
+    );
+
+  // Format content list
+  let contentSummary = "";
+  if (contentItems.length === 0) {
+    contentSummary = "new content";
+  } else if (contentItems.length === 1) {
+    contentSummary = contentItems[0];
+  } else if (contentItems.length === 2) {
+    contentSummary = contentItems.join(" and ");
+  } else {
+    const lastItem = contentItems.pop();
+    contentSummary = contentItems.join(", ") + ", and " + lastItem;
+  }
+
+  // Live podcast banner
+  const liveBanner =
+    livePodcasts > 0
+      ? `
+    <div style="background: linear-gradient(135deg, #ff5656 0%, #d32f2f 100%); border-radius: 12px; padding: 20px; text-align: center; margin-bottom: 30px; border: 2px solid #ff7777; box-shadow: 0 4px 20px rgba(255, 86, 86, 0.4);">
+      <div style="display: inline-block; background: #fff; color: #d32f2f; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px;">🔴 Live Now</div>
+      <h2 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 800;">Dr. Irene Hamrick is Live!</h2>
+      <p style="margin: 10px 0 0; color: #ffcccc; font-size: 16px;">Join the live podcast streaming now</p>
+    </div>
+  `
+      : "";
+
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>New Content from Dr. Irene Hamrick</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #0f0f0f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #0f0f0f;">
+    <tr>
+      <td style="padding: 40px 20px;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto; background: linear-gradient(180deg, #1a0505 0%, #0d0202 100%); border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6); border: 1px solid rgba(255, 86, 86, 0.2);">
+          
+          <!-- Header -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #8b0000 0%, #450000 100%); padding: 40px 30px; text-align: center; border-bottom: 3px solid #ff5656;">
+              <div style="display: inline-block; width: 70px; height: 70px; background: linear-gradient(135deg, #ff5656, #ff9a9a); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 32px; color: #1a0000; box-shadow: 0 8px 24px rgba(255, 86, 86, 0.4); margin-bottom: 20px;">PG-65</div>
+              <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 800; letter-spacing: -0.5px;">Dr. Irene Hamrick</h1>
+              <p style="margin: 8px 0 0; color: #ffcccc; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px;">New Content Available</p>
+            </td>
+          </tr>
+
+          <!-- Main Content -->
+          <tr>
+            <td style="padding: 40px 30px;">
+              ${liveBanner}
+              
+              <p style="margin: 0 0 20px; color: #e0e0e0; font-size: 16px; line-height: 1.6;">
+                Hello <strong style="color: #ff9a9a;">${subscriberName}</strong>,
+              </p>
+              
+              <p style="margin: 0 0 30px; color: #c0c0c0; font-size: 16px; line-height: 1.6;">
+                ${livePodcasts > 0 ? "🎙️ " : ""}Dr. Irene Hamrick has ${
+    livePodcasts > 0 ? "gone live and" : ""
+  } added <strong style="color: #ff7777;">${contentSummary}</strong> ${
+    livePodcasts > 0 ? "to the platform" : "for you to explore"
+  }. Don't miss out on this exciting ${
+    livePodcasts > 0 ? "live session and " : ""
+  }new content!
+              </p>
+
+              ${
+                contentItems.length > 0
+                  ? `
+              <div style="background: rgba(255, 86, 86, 0.08); border-left: 4px solid #ff5656; border-radius: 8px; padding: 20px; margin-bottom: 30px;">
+                <h3 style="margin: 0 0 15px; color: #ff9a9a; font-size: 18px; font-weight: 700;">What's New:</h3>
+                <ul style="margin: 0; padding-left: 20px; color: #d0d0d0; font-size: 15px; line-height: 2;">
+                  ${
+                    counts.blogs > 0
+                      ? `<li><strong>${counts.blogs}</strong> ${
+                          counts.blogs === 1 ? "Blog" : "Blogs"
+                        } 📝</li>`
+                      : ""
+                  }
+                  ${
+                    counts.publications > 0
+                      ? `<li><strong>${counts.publications}</strong> ${
+                          counts.publications === 1
+                            ? "Publication"
+                            : "Publications"
+                        } 📚</li>`
+                      : ""
+                  }
+                  ${
+                    counts.videos > 0
+                      ? `<li><strong>${counts.videos}</strong> ${
+                          counts.videos === 1 ? "Video" : "Videos"
+                        } 🎥</li>`
+                      : ""
+                  }
+                  ${
+                    counts.podcasts > 0
+                      ? `<li><strong>${counts.podcasts}</strong> ${
+                          counts.podcasts === 1 ? "Podcast" : "Podcasts"
+                        } 🎙️</li>`
+                      : ""
+                  }
+                  ${
+                    counts.lifeSuggestions > 0
+                      ? `<li><strong>${counts.lifeSuggestions}</strong> Life ${
+                          counts.lifeSuggestions === 1
+                            ? "Suggestion"
+                            : "Suggestions"
+                        } 💡</li>`
+                      : ""
+                  }
+                </ul>
+              </div>
+              `
+                  : ""
+              }
+
+              <!-- CTA Button -->
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                <tr>
+                  <td style="text-align: center; padding: 10px 0 30px;">
+                    <a href="${websiteUrl}" style="display: inline-block; background: linear-gradient(135deg, #ff5656 0%, #d32f2f 100%); color: #ffffff; text-decoration: none; padding: 16px 40px; border-radius: 50px; font-size: 16px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 8px 24px rgba(255, 86, 86, 0.4); transition: transform 0.2s;">
+                      ${
+                        livePodcasts > 0
+                          ? "🔴 Join Live Now"
+                          : "Explore New Content"
+                      }
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin: 0; color: #999; font-size: 14px; line-height: 1.6; text-align: center;">
+                Stay connected and never miss an update from Dr. Irene Hamrick's journey in thought leadership, research, and life insights.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background: #0a0000; padding: 30px; text-align: center; border-top: 1px solid rgba(255, 86, 86, 0.2);">
+              <p style="margin: 0 0 10px; color: #666; font-size: 12px;">
+                You're receiving this email because you subscribed to updates from Dr. Irene Hamrick.
+              </p>
+              <p style="margin: 0; color: #555; font-size: 11px;">
+                © ${new Date().getFullYear()} Dr. Irene Hamrick. All rights reserved.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+};

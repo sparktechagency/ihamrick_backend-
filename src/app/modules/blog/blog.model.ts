@@ -6,6 +6,7 @@ export interface IBlog extends Document {
   status: boolean;
   description: string;
   coverImage?: string;
+  isNotified: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -28,6 +29,11 @@ const BlogSchema = new Schema<IBlog>(
     coverImage: {
       type: String,
       trim: true,
+    },
+    isNotified: {
+      type: Boolean,
+      default: false,
+      index: true,
     },
   },
   {

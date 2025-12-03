@@ -9,6 +9,7 @@ export interface ILifeSuggestion extends Document {
   _id: string;
   type: SuggestionType;
   content: string;
+  isNotified: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -24,6 +25,11 @@ const LifeSuggestionSchema = new Schema<ILifeSuggestion>(
       type: String,
       required: true,
       trim: true,
+    },
+    isNotified: {
+      type: Boolean,
+      default: false,
+      index: true,
     },
   },
   {

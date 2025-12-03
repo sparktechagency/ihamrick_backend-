@@ -10,6 +10,7 @@ export interface IPublications extends Document {
   description: string;
   coverImage?: string;
   file?: string;
+  isNotified: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -49,6 +50,11 @@ const PublicationsSchema = new Schema<IPublications>(
     file: {
       type: String,
       trim: true,
+    },
+    isNotified: {
+      type: Boolean,
+      default: false,
+      index: true,
     },
   },
   {

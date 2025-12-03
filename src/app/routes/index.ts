@@ -9,6 +9,7 @@ import { SearchRoutes } from "../modules/search/search.routes";
 import { lifeSuggestionRoutes } from "../modules/lifeSuggestion/lifeSuggestion.routes";
 import { socialLinkRoutes } from "../modules/socialLink/socialLink.routes";
 import { rssFeedRoutes } from "../modules/RssFeedUsers/RssFeed.route";
+import { notificationRoutes } from "../modules/notification/notification.routes";
 
 const router = express.Router();
 
@@ -52,6 +53,10 @@ const moduleRoutes = [
   {
     path: "/rss-feed",
     route: rssFeedRoutes,
+  },
+  {
+    path: "/notifications",
+    route: notificationRoutes,
   },
 ];
 

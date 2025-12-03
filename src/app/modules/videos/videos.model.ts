@@ -16,6 +16,7 @@ export interface IVideo extends Document {
   status: boolean;
   views: number;
   isDeleted: boolean;
+  isNotified: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -85,6 +86,11 @@ const VideoSchema = new Schema<IVideo>(
     isDeleted: {
       type: Boolean,
       default: false,
+    },
+    isNotified: {
+      type: Boolean,
+      default: false,
+      index: true,
     },
   },
   {

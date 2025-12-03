@@ -57,6 +57,9 @@ export interface IPodcast extends Document {
   // Streaming configuration (virtual)
   streamConfig?: IStreamConfig;
 
+  // Notification tracking
+  isNotified: boolean;
+
   // Metadata
   createdAt: Date;
   updatedAt: Date;
@@ -173,6 +176,11 @@ const PodcastSchema = new Schema<IPodcast>(
     isRecording: {
       type: Boolean,
       default: true,
+    },
+    isNotified: {
+      type: Boolean,
+      default: false,
+      index: true,
     },
   },
   {
