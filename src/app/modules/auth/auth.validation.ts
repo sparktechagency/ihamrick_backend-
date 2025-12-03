@@ -1,25 +1,49 @@
 import { z } from "zod";
 
 const changePasswordValidationSchema = z.object({
-  oldPassword: z.string().min(8),
-  newPassword: z.string().min(8),
+  body: z.object({
+    oldPassword: z
+      .string({
+        required_error: "Old password is required",
+      })
+      .min(8, "Old password must be at least 8 characters long"),
+    newPassword: z
+      .string({
+        required_error: "New password is required",
+      })
+      .min(8, "New password must be at least 8 characters long"),
+  }),
 });
 
-const resetPasswordValidationSchema = z
-  .object({
-    email: z.string().email("Please provide a valid email address"),
-    newPassword: z
-      .string()
-      .min(8, "Password must be at least 8 characters long"),
-    confirmPassword: z
-      .string()
-      .min(8, "Confirm password must be at least 8 characters long"),
-    otp: z.string().min(6, "OTP must be at least 6 characters long"),
-  })
-  .refine((data) => data.newPassword === data.confirmPassword, {
-    message: "New password and confirm password do not match",
-    path: ["confirmPassword"],
-  });
+const resetPasswordValidationSchema = z.object({
+  body: z
+    .object({
+      email: z
+        .string({
+          required_error: "Email is required",
+        })
+        .email("Please provide a valid email address"),
+      newPassword: z
+        .string({
+          required_error: "New password is required",
+        })
+        .min(8, "Password must be at least 8 characters long"),
+      confirmPassword: z
+        .string({
+          required_error: "Confirm password is required",
+        })
+        .min(8, "Confirm password must be at least 8 characters long"),
+      otp: z
+        .string({
+          required_error: "OTP is required",
+        })
+        .min(6, "OTP must be at least 6 characters long"),
+    })
+    .refine((data) => data.newPassword === data.confirmPassword, {
+      message: "New password and confirm password do not match",
+      path: ["confirmPassword"],
+    }),
+});
 
 export const authValidation = {
   changePasswordValidationSchema,

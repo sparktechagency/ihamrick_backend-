@@ -4,6 +4,13 @@ import ApiError from "../../../errors/ApiErrors";
 import httpStatus from "http-status";
 
 const createSocialLink = async (data: { name: string; url: string }) => {
+  const isExisting = await SocialLink.findOne({ name: data.name });
+  if (isExisting) {
+    throw new ApiError(
+      httpStatus.CONFLICT,
+      "Social Link with this name already exists"
+    );
+  }
   const socialLink = await SocialLink.create(data);
   return socialLink;
 };
