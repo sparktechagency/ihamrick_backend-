@@ -1,10 +1,12 @@
-import { UserRole } from "../models";
+import { UserRole, UserStatus } from "../models";
 
 export interface IAdmin {
-  name: string;
-  username: string;
+  userName: string;
   email: string;
-  phoneNumber: string;
+  phoneNumber?: string;
+  location?: string;
+  profilePicture?: string;
   password: string;
   role: UserRole;
+  status: UserStatus;
 }

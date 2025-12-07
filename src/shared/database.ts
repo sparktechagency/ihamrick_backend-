@@ -1,7 +1,6 @@
 import mongoose from "mongoose";
 import config from "../config";
-import { User, UserRole } from "../app/models";
-import bcrypt from "bcrypt";
+import dbService from "../app/db/db";
 
 async function connectMongoDB() {
   try {
@@ -11,7 +10,7 @@ async function connectMongoDB() {
     });
     console.log("MongoDB connected successfully!");
 
-    await initiateSuperAdmin();
+    // await dbService.initiateSuperAdmin();
   } catch (error) {
     console.error("MongoDB connection error:", error);
     process.exit(1);
@@ -29,31 +28,6 @@ mongoose.connection.on("error", (err) => {
 mongoose.connection.on("disconnected", () => {
   console.log("Mongoose disconnected from MongoDB");
 });
-
-async function initiateSuperAdmin() {
-  const hashedPassword = await bcrypt.hash(
-    "12345678",
-    Number(config.bcrypt_salt_rounds)
-  );
-  const payload = {
-    name: "Admin",
-    email: "admin@gmail.com",
-    phoneNumber: "0123456789",
-    password: hashedPassword,
-    role: UserRole.ADMIN,
-    username: "Super Admin",
-    city: "Dhaka",
-    streetAddress: "Khilkhet, Nikunja-2",
-  };
-
-  const isExistUser = await User.findOne({
-    email: payload.email,
-  });
-
-  if (isExistUser) return;
-
-  await User.create(payload);
-}
 
 connectMongoDB();
 

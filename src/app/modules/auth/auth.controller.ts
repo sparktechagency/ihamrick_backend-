@@ -45,8 +45,34 @@ const getMyProfile = catchAsync(async (req: Request, res: Response) => {
   const result = await authService.getMyProfile(req.user.id);
   sendResponse(res, {
     success: true,
-    statusCode: 201,
+    statusCode: httpStatus.OK,
     message: "User profile retrieved successfully",
+    data: result,
+  });
+});
+
+// update admin profile
+const updateAdminProfile = catchAsync(async (req: Request, res: Response) => {
+  let profilePictureUrl: string | undefined;
+
+  // Handle profile picture upload if provided
+  if (req.file) {
+    const { fileUploader } = await import("../../../helpers/fileUploader");
+    const uploadResult = await fileUploader.uploadToCloudinary(req.file);
+    profilePictureUrl = uploadResult.Location;
+  }
+
+  // Merge body data with uploaded file URL
+  const updateData = {
+    ...req.body,
+    ...(profilePictureUrl && { profilePicture: profilePictureUrl }),
+  };
+
+  const result = await authService.updateAdminProfile(req.user.id, updateData);
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    message: "Admin profile updated successfully",
     data: result,
   });
 });
@@ -119,6 +145,7 @@ export const AuthController = {
   loginUser,
   logoutUser,
   getMyProfile,
+  updateAdminProfile,
   changePassword,
   forgotPassword,
   resetPassword,

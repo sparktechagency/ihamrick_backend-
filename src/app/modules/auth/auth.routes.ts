@@ -4,6 +4,7 @@ import auth from "../../middlewares/auth";
 import validateRequest from "../../middlewares/validateRequest";
 import { AuthController } from "./auth.controller";
 import { authValidation } from "./auth.validation";
+import { fileUploader } from "../../../helpers/fileUploader";
 
 const router = express.Router();
 
@@ -14,6 +15,14 @@ router.post("/login", AuthController.loginUser);
 router.post("/logout", AuthController.logoutUser);
 
 router.get("/me", auth(), AuthController.getMyProfile);
+
+router.patch(
+  "/update-profile",
+  auth(UserRole.ADMIN),
+  fileUploader.upload.single("profilePicture"),
+  validateRequest(authValidation.updateAdminProfileValidationSchema),
+  AuthController.updateAdminProfile
+);
 
 router.put(
   "/change-password",

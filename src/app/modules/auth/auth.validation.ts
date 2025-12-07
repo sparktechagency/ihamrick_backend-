@@ -45,7 +45,17 @@ const resetPasswordValidationSchema = z.object({
     }),
 });
 
+const updateAdminProfileValidationSchema = z.object({
+  body: z.object({
+    userName: z.string().trim().optional(),
+    email: z.string().email("Please provide a valid email address").optional(),
+    phoneNumber: z.string().trim().optional(),
+    location: z.string().trim().optional(),
+  }),
+});
+
 export const authValidation = {
   changePasswordValidationSchema,
   resetPasswordValidationSchema,
+  updateAdminProfileValidationSchema,
 };

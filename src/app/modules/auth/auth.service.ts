@@ -34,12 +34,6 @@ const loginUser = async (payload: {
       "User not found! with this email " + payload.email
     );
   }
-  if (userData.status !== "ACTIVE") {
-    throw new ApiError(
-      httpStatus.FORBIDDEN,
-      "User account already delete or Block."
-    );
-  }
 
   const isCorrectPassword: boolean = await bcrypt.compare(
     payload.password,
@@ -77,13 +71,12 @@ const loginUser = async (payload: {
 const getMyProfile = async (userId: string) => {
   const userProfile = await User.findById(userId).select({
     _id: 1,
-    firstName: 1,
-    lastName: 1,
+    userName: 1,
     role: 1,
     phoneNumber: 1,
-    status: 1,
     email: 1,
     profilePicture: 1,
+    location: 1,
     createdAt: 1,
     updatedAt: 1,
   });
@@ -93,6 +86,62 @@ const getMyProfile = async (userId: string) => {
   }
 
   return userProfile;
+};
+
+// update admin profile
+const updateAdminProfile = async (
+  userId: string,
+  payload: {
+    userName?: string;
+    email?: string;
+    phoneNumber?: string;
+    location?: string;
+    profilePicture?: string;
+  }
+) => {
+  const user = await User.findById(userId);
+
+  if (!user) {
+    throw new ApiError(httpStatus.NOT_FOUND, "User not found!");
+  }
+
+  // Check if email is being changed and if it already exists
+  if (payload.email && payload.email !== user.email) {
+    const existingUser = await User.findOne({ email: payload.email });
+    if (existingUser) {
+      throw new ApiError(
+        httpStatus.CONFLICT,
+        "Email already exists! Please use a different email."
+      );
+    }
+  }
+
+  // Update only provided fields
+  const updateData: any = {};
+  if (payload.userName !== undefined) updateData.userName = payload.userName;
+  if (payload.email !== undefined) updateData.email = payload.email;
+  if (payload.phoneNumber !== undefined)
+    updateData.phoneNumber = payload.phoneNumber;
+  if (payload.location !== undefined) updateData.location = payload.location;
+  if (payload.profilePicture !== undefined)
+    updateData.profilePicture = payload.profilePicture;
+
+  const updatedProfile = await User.findByIdAndUpdate(userId, updateData, {
+    new: true,
+    runValidators: true,
+  }).select({
+    _id: 1,
+    userName: 1,
+    role: 1,
+    phoneNumber: 1,
+    email: 1,
+    profilePicture: 1,
+    location: 1,
+    createdAt: 1,
+    updatedAt: 1,
+  });
+
+  return updatedProfile;
 };
 
 // change password
@@ -304,6 +353,7 @@ const resetPassword = async (
 export const authService = {
   loginUser,
   getMyProfile,
+  updateAdminProfile,
   changePassword,
   forgotPassword,
   resendOtp,
