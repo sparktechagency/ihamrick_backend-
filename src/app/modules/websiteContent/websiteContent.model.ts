@@ -33,9 +33,6 @@ const WebsiteContentSchema = new Schema<IWebsiteContent>(
   }
 );
 
-// Index for better performance
-WebsiteContentSchema.index({ type: 1 });
-
 export const WebsiteContent = mongoose.model<IWebsiteContent>(
   "WebsiteContent",
   WebsiteContentSchema
