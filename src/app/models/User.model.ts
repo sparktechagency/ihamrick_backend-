@@ -21,6 +21,7 @@ export interface IUser extends Document {
   profilePicture?: string;
   password: string;
   role: UserRole;
+  status: UserStatus;
   resetPasswordOtp?: string;
   resetPasswordOtpExpiry?: Date;
   createdAt: Date;
@@ -60,6 +61,11 @@ const UserSchema = new Schema<IUser>(
       type: String,
       enum: Object.values(UserRole),
       default: UserRole.GUEST,
+    },
+    status: {
+      type: String,
+      enum: Object.values(UserStatus),
+      default: UserStatus.ACTIVE,
     },
     resetPasswordOtp: {
       type: String,

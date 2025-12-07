@@ -6,7 +6,7 @@ import { JwtPayload, Secret } from "jsonwebtoken";
 import httpStatus from "http-status";
 import ApiError from "../../errors/ApiErrors";
 import { jwtHelpers } from "../../helpers/jwtHelpers";
-import { User } from "../models";
+import { User, UserStatus } from "../models";
 
 /**
  * Authentication middleware that supports multiple token sources:
@@ -65,7 +65,7 @@ const auth = (...roles: string[]) => {
         throw new ApiError(httpStatus.NOT_FOUND, "User not found!");
       }
 
-      if (user.status === "BLOCKED") {
+      if (user.status === UserStatus.BLOCKED) {
         throw new ApiError(httpStatus.FORBIDDEN, "Your account is blocked!");
       }
 
