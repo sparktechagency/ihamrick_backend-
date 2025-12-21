@@ -1,42 +1,29 @@
 import mongoose from "mongoose";
-import { Publications } from "./publications.model";
+import { Publications, IPublications } from "./publications.model";
 import ApiError from "../../../errors/ApiErrors";
 import httpStatus from "http-status";
 import { paginationHelper } from "../../../helpers/paginationHelper";
 import { IPaginationOptions } from "../../../interfaces/paginations";
+import { deleteFromGCS } from "../../../helpers/googleCloudStorage";
 
 const createIntoDb = async (publicationData: any) => {
-  const session = await mongoose.startSession();
+  const sanitizedPublicationData = {
+    title: publicationData.title,
+    author: publicationData.author,
+    publicationDate: publicationData.publicationDate,
+    fileType: publicationData.fileType,
+    description: publicationData.description,
+    status:
+      publicationData.status !== undefined
+        ? Boolean(publicationData.status)
+        : true,
+    coverImage: publicationData.coverImage,
+    file: publicationData.file,
+    fileName: publicationData.fileName,
+  };
 
-  try {
-    session.startTransaction();
-
-    const sanitizedPublicationData = {
-      title: publicationData.title,
-      author: publicationData.author,
-      publicationDate: publicationData.publicationDate,
-      fileType: publicationData.fileType,
-      description: publicationData.description,
-      status:
-        publicationData.status !== undefined
-          ? Boolean(publicationData.status)
-          : true,
-      coverImage: publicationData.coverImage,
-      file: publicationData.file,
-    };
-
-    const result = await Publications.create([sanitizedPublicationData], {
-      session,
-    });
-
-    await session.commitTransaction();
-    return result[0];
-  } catch (error) {
-    await session.abortTransaction();
-    throw error;
-  } finally {
-    session.endSession();
-  }
+  const result = await Publications.create(sanitizedPublicationData);
+  return result;
 };
 
 const getListFromDb = async (
@@ -64,13 +51,14 @@ const getListFromDb = async (
   }
 
   // Execute the query with optional pagination
-  let queryExec = Publications.find(query)
-    .sort({ [sortBy || "createdAt"]: sortOrder === "asc" ? 1 : -1 });
-  
+  let queryExec = Publications.find(query).sort({
+    [sortBy || "createdAt"]: sortOrder === "asc" ? 1 : -1,
+  });
+
   if (limit > 0) {
     queryExec = queryExec.skip(skip).limit(limit);
   }
-  
+
   const result = await queryExec;
   const total = await Publications.countDocuments(query);
 
@@ -119,12 +107,14 @@ const getWebsitePublicationsList = async (
   }
 
   // Apply pagination only if limit is provided
-  let query = Publications.find({ ...whereConditions, status: true }).sort(sortConditions);
-  
+  let query = Publications.find({ ...whereConditions, status: true }).sort(
+    sortConditions
+  );
+
   if (limit > 0) {
     query = query.skip(skip).limit(limit);
   }
-  
+
   const result = await query;
   const total = await Publications.countDocuments({
     ...whereConditions,
@@ -151,94 +141,84 @@ const getByIdFromDb = async (id: string) => {
 };
 
 const updateIntoDb = async (id: string, data: any) => {
-  const session = await mongoose.startSession();
-
-  try {
-    session.startTransaction();
-
-    // Sanitize update data
-    const sanitizedUpdateData = {
-      ...(data.title && { title: data.title }),
-      ...(data.author && { author: data.author }),
-      ...(data.publicationDate && { publicationDate: data.publicationDate }),
-      ...(data.fileType && { fileType: data.fileType }),
-      ...(data.description && { description: data.description }),
-      ...(data.status !== undefined && { status: data.status }),
-      ...(data.coverImage && { coverImage: data.coverImage }),
-      ...(data.file && { file: data.file }),
-      updatedAt: new Date(),
-    };
-
-    const result = await Publications.findByIdAndUpdate(
-      id,
-      sanitizedUpdateData,
-      { new: true, session }
-    );
-
-    if (!result) {
-      throw new ApiError(httpStatus.NOT_FOUND, "Publication not found");
-    }
-
-    await session.commitTransaction();
-    return result;
-  } catch (error) {
-    await session.abortTransaction();
-    throw error;
-  } finally {
-    session.endSession();
+  // Get existing publication first to check for old files
+  const existingPublication = await Publications.findById(id);
+  if (!existingPublication) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Publication not found");
   }
+
+  // Store old URLs for deletion after successful update
+  const oldCoverImage = existingPublication.coverImage;
+  const oldFile = existingPublication.file;
+  const isCoverImageReplaced = !!data.coverImage;
+  const isFileReplaced = !!data.file;
+
+  // Build update object - only include provided fields
+  const sanitizedUpdateData: any = { updatedAt: new Date() };
+
+  if (data.title !== undefined) sanitizedUpdateData.title = data.title;
+  if (data.author !== undefined) sanitizedUpdateData.author = data.author;
+  if (data.publicationDate !== undefined)
+    sanitizedUpdateData.publicationDate = data.publicationDate;
+  if (data.fileType !== undefined) sanitizedUpdateData.fileType = data.fileType;
+  if (data.description !== undefined)
+    sanitizedUpdateData.description = data.description;
+  if (data.status !== undefined) sanitizedUpdateData.status = data.status;
+  if (data.coverImage !== undefined)
+    sanitizedUpdateData.coverImage = data.coverImage;
+  if (data.file !== undefined) sanitizedUpdateData.file = data.file;
+  if (data.fileName !== undefined) sanitizedUpdateData.fileName = data.fileName;
+
+  const result = await Publications.findByIdAndUpdate(id, sanitizedUpdateData, {
+    new: true,
+    runValidators: true,
+  });
+
+  if (!result) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Publication not found");
+  }
+
+  // Delete old files from GCS AFTER successful database update (fire and forget)
+  if (isCoverImageReplaced && oldCoverImage) {
+    deleteFromGCS(oldCoverImage).catch((err) => {
+      console.error("Failed to delete old cover image from GCS:", err);
+    });
+  }
+
+  if (isFileReplaced && oldFile) {
+    deleteFromGCS(oldFile).catch((err) => {
+      console.error("Failed to delete old file from GCS:", err);
+    });
+  }
+
+  return result;
 };
 
 const deleteItemFromDb = async (id: string) => {
-  const session = await mongoose.startSession();
+  // First, find the publication to get file URLs
+  const publication = await Publications.findById(id);
 
-  try {
-    session.startTransaction();
-
-    // First, find the publication to get file URLs
-    const publication = await Publications.findById(id);
-
-    if (!publication) {
-      throw new ApiError(httpStatus.NOT_FOUND, "Publication not found");
-    }
-
-    // Import fileUploader dynamically to avoid circular dependency
-    const { fileUploader } = await import("../../../helpers/fileUploader");
-
-    // If there's a cover image, delete it from Cloudinary
-    if (publication.coverImage) {
-      try {
-        await fileUploader.deleteFromCloudinary(publication.coverImage);
-      } catch (cloudinaryError) {
-        console.error(
-          "Error deleting cover image from Cloudinary:",
-          cloudinaryError
-        );
-        // Continue with deletion even if Cloudinary deletion fails
-      }
-    }
-
-    // If there's a file, delete it from Cloudinary
-    if (publication.file) {
-      try {
-        await fileUploader.deleteFromCloudinary(publication.file);
-      } catch (cloudinaryError) {
-        console.error("Error deleting file from Cloudinary:", cloudinaryError);
-        // Continue with deletion even if Cloudinary deletion fails
-      }
-    }
-
-    // Now delete the publication from database
-    const result = await Publications.findByIdAndDelete(id);
-
-    await session.commitTransaction();
-    return result;
-  } catch (error) {
-    await session.abortTransaction();
-    throw error;
-  } finally {
-    session.endSession();
+  if (!publication) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Publication not found");
   }
+
+  // Delete the publication from database first
+  const result = await Publications.findByIdAndDelete(id);
+
+  // Delete files from GCS after successful database deletion (fire and forget)
+  if (publication.coverImage) {
+    deleteFromGCS(publication.coverImage).catch((err) => {
+      console.error("Failed to delete cover image from GCS:", err);
+    });
+  }
+
+  if (publication.file) {
+    deleteFromGCS(publication.file).catch((err) => {
+      console.error("Failed to delete file from GCS:", err);
+    });
+  }
+
+  return result;
 };
 
 export const publicationsService = {

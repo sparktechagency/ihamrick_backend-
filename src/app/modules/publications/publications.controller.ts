@@ -3,7 +3,8 @@ import sendResponse from "../../../shared/sendResponse";
 import catchAsync from "../../../shared/catchAsync";
 import { publicationsService } from "./publications.service";
 import { Request, Response } from "express";
-import { fileUploader } from "../../../helpers/fileUploader";
+import { googleCloudStorage } from "../../../helpers/googleCloudStorage";
+
 const createPublications = catchAsync(async (req, res) => {
   const publicationData = req.body;
 
@@ -14,26 +15,32 @@ const createPublications = catchAsync(async (req, res) => {
     }
   }
 
-  // Process files if they exist using req.files as any
+  // Process files if they exist
   const files = req.files as any;
   if (files) {
     try {
-      // Handle cover image
+      // Handle cover image - upload to GCS
       if (files["coverImage"] && files["coverImage"][0]) {
-        const coverImageResult = await fileUploader.uploadToCloudinary(
-          files["coverImage"][0],
-          "publications/covers"
+        console.log(
+          `Uploading cover image: ${files["coverImage"][0].originalname}`
         );
-        publicationData.coverImage = coverImageResult.Location;
+        const coverImageResult =
+          await googleCloudStorage.uploadPublicationImage(
+            files["coverImage"][0],
+            "covers"
+          );
+        publicationData.coverImage = coverImageResult.signedUrl;
       }
 
-      // Handle publication file (PDF, etc.)
+      // Handle publication file (PDF, etc.) - upload to GCS
       if (files["file"] && files["file"][0]) {
-        const fileResult = await fileUploader.uploadToCloudinary(
+        console.log(`Uploading document: ${files["file"][0].originalname}`);
+        const fileResult = await googleCloudStorage.uploadDocument(
           files["file"][0],
-          "publications/files"
+          "files"
         );
-        publicationData.file = fileResult.Location;
+        publicationData.file = fileResult.signedUrl;
+        publicationData.fileName = fileResult.fileName;
 
         // Set the fileType based on the uploaded file extension
         const fileName = files["file"][0].originalname;
@@ -45,9 +52,11 @@ const createPublications = catchAsync(async (req, res) => {
           publicationData.fileType = fileExt;
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error uploading files:", error);
-      throw new Error("Error uploading files. Please try again.");
+      throw new Error(
+        error.message || "Error uploading files. Please try again."
+      );
     }
   }
 
@@ -62,8 +71,6 @@ const createPublications = catchAsync(async (req, res) => {
 
 const getPublicationsList = catchAsync(async (req: Request, res: Response) => {
   const { searchTerm, status, page, limit, sortBy, sortOrder } = req.query;
-
-  console.log("Query params:", { searchTerm, status, page, limit });
 
   const filters = {
     searchTerm: searchTerm as string,
@@ -143,20 +150,28 @@ const updatePublications = catchAsync(async (req, res) => {
   const files = req.files as any;
   if (files) {
     try {
+      // Handle cover image - upload to GCS
       if (files["coverImage"] && files["coverImage"][0]) {
-        const coverImageResult = await fileUploader.uploadToCloudinary(
-          files["coverImage"][0],
-          "publications/covers"
+        console.log(
+          `Uploading new cover image: ${files["coverImage"][0].originalname}`
         );
-        updateData.coverImage = coverImageResult.Location;
+        const coverImageResult =
+          await googleCloudStorage.uploadPublicationImage(
+            files["coverImage"][0],
+            "covers"
+          );
+        updateData.coverImage = coverImageResult.signedUrl;
       }
 
+      // Handle publication file (PDF, etc.) - upload to GCS
       if (files["file"] && files["file"][0]) {
-        const fileResult = await fileUploader.uploadToCloudinary(
+        console.log(`Uploading new document: ${files["file"][0].originalname}`);
+        const fileResult = await googleCloudStorage.uploadDocument(
           files["file"][0],
-          "publications/files"
+          "files"
         );
-        updateData.file = fileResult.Location;
+        updateData.file = fileResult.signedUrl;
+        updateData.fileName = fileResult.fileName;
 
         const fileName = files["file"][0].originalname;
         const fileExt = fileName.split(".").pop()?.toLowerCase();
@@ -167,9 +182,11 @@ const updatePublications = catchAsync(async (req, res) => {
           updateData.fileType = fileExt;
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error uploading files:", error);
-      throw new Error("Error uploading files. Please try again.");
+      throw new Error(
+        error.message || "Error uploading files. Please try again."
+      );
     }
   }
 

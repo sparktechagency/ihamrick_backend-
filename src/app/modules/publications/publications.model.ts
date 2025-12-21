@@ -10,6 +10,7 @@ export interface IPublications extends Document {
   description: string;
   coverImage?: string;
   file?: string;
+  fileName?: string;
   isNotified: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -48,6 +49,10 @@ const PublicationsSchema = new Schema<IPublications>(
       trim: true,
     },
     file: {
+      type: String,
+      trim: true,
+    },
+    fileName: {
       type: String,
       trim: true,
     },

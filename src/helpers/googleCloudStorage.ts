@@ -292,6 +292,64 @@ export const uploadVideo = async (
   return uploadToGCS(file, config.gcs.paths.video || "videos");
 };
 
+// Upload document (PDF, DOCX, PPTX, TXT) with validation
+export const uploadDocument = async (
+  file: Express.Multer.File,
+  subfolder: string = "files"
+): Promise<UploadResult> => {
+  const allowedMimeTypes = [
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // docx
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation", // pptx
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // xlsx
+    "text/plain", // txt
+  ];
+
+  if (!allowedMimeTypes.includes(file.mimetype)) {
+    throw new Error(
+      "Invalid file type. Only PDF, DOCX, PPTX, XLSX, and TXT files are allowed."
+    );
+  }
+
+  // Max 100MB for documents
+  const maxDocSize = 100 * 1024 * 1024;
+  if (file.size > maxDocSize) {
+    throw new Error(`Document size exceeds the maximum limit of 100MB`);
+  }
+
+  const folder = `publications/${subfolder}`;
+  return uploadToGCS(file, folder);
+};
+
+// Upload image for publications with validation
+export const uploadPublicationImage = async (
+  file: Express.Multer.File,
+  subfolder: string = "covers"
+): Promise<UploadResult> => {
+  const allowedMimeTypes = [
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "image/webp",
+    "image/gif",
+  ];
+
+  if (!allowedMimeTypes.includes(file.mimetype)) {
+    throw new Error(
+      "Invalid file type. Only JPEG, PNG, WebP, and GIF images are allowed."
+    );
+  }
+
+  // Max 10MB for images
+  const maxImageSize = 10 * 1024 * 1024;
+  if (file.size > maxImageSize) {
+    throw new Error(`Image size exceeds the maximum limit of 10MB`);
+  }
+
+  const folder = `publications/${subfolder}`;
+  return uploadToGCS(file, folder);
+};
+
 // Check if GCS is properly configured and accessible
 // Uses getFiles instead of bucket.exists() to avoid needing storage.buckets.get permission
 export const testConnection = async (): Promise<boolean> => {
@@ -322,5 +380,7 @@ export const googleCloudStorage = {
   uploadToGCS,
   deleteFromGCS,
   uploadVideo,
+  uploadDocument,
+  uploadPublicationImage,
   testConnection,
 };
