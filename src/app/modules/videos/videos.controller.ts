@@ -223,7 +223,12 @@ const getVideosList = catchAsync(async (req: Request, res: Response) => {
     sortOrder: sortOrder as string,
   };
 
-  const result = await videosService.getListFromDb(filters, paginationOptions);
+  // Public route - only show available videos (status: true)
+  const result = await videosService.getListFromDb(
+    filters,
+    paginationOptions,
+    true // publicOnly = true
+  );
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -238,7 +243,8 @@ const getVideosList = catchAsync(async (req: Request, res: Response) => {
 const getVideoById = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
 
-  const result = await videosService.getByIdFromDb(id, false);
+  // Admin route - show all videos regardless of status
+  const result = await videosService.getByIdFromDb(id, false, false); // incrementView=false, publicOnly=false
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -252,7 +258,8 @@ const getVideoById = catchAsync(async (req: Request, res: Response) => {
 const watchVideo = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
 
-  const result = await videosService.getByIdFromDb(id, true);
+  // Public route - only show available videos (status: true)
+  const result = await videosService.getByIdFromDb(id, true, true); // incrementView=true, publicOnly=true
 
   sendResponse(res, {
     statusCode: httpStatus.OK,

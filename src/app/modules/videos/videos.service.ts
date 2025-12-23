@@ -49,7 +49,8 @@ const createIntoDb = async (data: Partial<IVideo>) => {
 
 const getListFromDb = async (
   filters: IVideoFilter,
-  paginationOptions: IPaginationOptions
+  paginationOptions: IPaginationOptions,
+  publicOnly: boolean = false
 ) => {
   const { searchTerm, status, uploadDateFrom, uploadDateTo } = filters;
 
@@ -66,7 +67,11 @@ const getListFromDb = async (
   }
 
   // Filter by status
-  if (status !== undefined) {
+  if (publicOnly) {
+    // For public routes, only show available videos (status: true)
+    andConditions.push({ status: true });
+  } else if (status !== undefined) {
+    // For admin routes, allow filtering by status
     andConditions.push({ status: status === "true" });
   }
 
@@ -138,10 +143,19 @@ const getListFromDb = async (
   };
 };
 
-const getByIdFromDb = async (id: string, incrementView: boolean = false) => {
+const getByIdFromDb = async (
+  id: string,
+  incrementView: boolean = false,
+  publicOnly: boolean = false
+) => {
   const result = await Video.findById(id);
 
   if (!result || result.isDeleted) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Video not found");
+  }
+
+  // For public routes, only return available videos (status: true)
+  if (publicOnly && !result.status) {
     throw new ApiError(httpStatus.NOT_FOUND, "Video not found");
   }
 
