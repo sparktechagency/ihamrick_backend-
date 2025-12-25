@@ -31,6 +31,13 @@ const createSchema = z.object({
         })
         .optional(),
       coverImage: z.string().optional(),
+      // Audio fields (these are set by controller after upload, not from body)
+      audioUrl: z.string().optional(),
+      audioSignedUrl: z.string().optional(),
+      audioFileName: z.string().optional(),
+      audioSize: z.number().optional(),
+      audioFormat: z.string().optional(),
+      audioDuration: z.number().optional(),
     })
     .refine(
       (data) => {
@@ -75,6 +82,13 @@ const updateSchema = z.object({
         .optional()
         .nullable(),
       coverImage: z.string().optional(),
+      // Audio fields (these are set by controller after upload, not from body)
+      audioUrl: z.string().optional(),
+      audioSignedUrl: z.string().optional(),
+      audioFileName: z.string().optional(),
+      audioSize: z.number().optional(),
+      audioFormat: z.string().optional(),
+      audioDuration: z.number().optional(),
     })
     .refine(
       (data) => {

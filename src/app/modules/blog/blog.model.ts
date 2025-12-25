@@ -15,6 +15,13 @@ export interface IBlog extends Document {
   scheduledAt?: Date;
   description: string;
   coverImage?: string;
+  // Audio fields for GCS storage
+  audioUrl?: string;
+  audioSignedUrl?: string;
+  audioFileName?: string;
+  audioSize?: number;
+  audioFormat?: string;
+  audioDuration?: number;
   isNotified: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -50,6 +57,31 @@ const BlogSchema = new Schema<IBlog>(
       type: String,
       trim: true,
     },
+    // Audio fields for GCS storage
+    audioUrl: {
+      type: String,
+      trim: true,
+    },
+    audioSignedUrl: {
+      type: String,
+      trim: true,
+    },
+    audioFileName: {
+      type: String,
+      trim: true,
+    },
+    audioSize: {
+      type: Number,
+      min: 0,
+    },
+    audioFormat: {
+      type: String,
+      trim: true,
+    },
+    audioDuration: {
+      type: Number,
+      min: 0,
+    },
     isNotified: {
       type: Boolean,
       default: false,
@@ -66,5 +98,8 @@ BlogSchema.index({ status: 1, scheduledAt: 1 });
 
 // Index for better search performance
 BlogSchema.index({ title: 1 });
+
+// Index for audio file refresh queries
+BlogSchema.index({ audioFileName: 1 });
 
 export const Blog = mongoose.model<IBlog>("Blog", BlogSchema);

@@ -4,21 +4,31 @@ import catchAsync from "../../../shared/catchAsync";
 import { blogService } from "./blog.service";
 import { Request, Response } from "express";
 import { fileUploader } from "../../../helpers/fileUploader";
+import {
+  uploadBlogAudio,
+  deleteBlogAudio,
+  refreshSignedUrl,
+} from "../../../helpers/googleCloudStorage";
+import { Blog } from "./blog.model";
 
 const createBlog = catchAsync(async (req: Request, res: Response) => {
   const blogData = req.body;
+
+  // Handle audio file upload to GCS
   if (req.file) {
     try {
-      const uploadResult = await fileUploader.uploadToCloudinary(
-        req.file,
-        "blogs"
-      );
-      blogData.coverImage = uploadResult.Location;
+      const uploadResult = await uploadBlogAudio(req.file);
+      blogData.audioUrl = uploadResult.publicUrl;
+      blogData.audioSignedUrl = uploadResult.signedUrl;
+      blogData.audioFileName = uploadResult.fileName;
+      blogData.audioSize = uploadResult.fileSize;
+      blogData.audioFormat = uploadResult.contentType;
     } catch (error) {
-      console.error("Error uploading file:", error);
-      throw new Error("Error uploading file. Please try again.");
+      console.error("Error uploading audio file:", error);
+      throw new Error("Error uploading audio file. Please try again.");
     }
   }
+
   const result = await blogService.createIntoDb(blogData);
   sendResponse(res, {
     statusCode: httpStatus.CREATED,
@@ -84,48 +94,87 @@ const getWebsiteBlogList = catchAsync(async (req: Request, res: Response) => {
 
 // Admin route - returns all blogs regardless of status
 const getBlogById = catchAsync(async (req, res) => {
-  const result = await blogService.getByIdFromDb(req.params.id, false);
+  const blog = await blogService.getByIdFromDb(req.params.id, false);
+
+  // Refresh signed URL if blog has audio file
+  if (blog && blog.audioFileName) {
+    try {
+      const freshSignedUrl = await refreshSignedUrl(blog.audioFileName);
+      blog.audioSignedUrl = freshSignedUrl;
+    } catch (error) {
+      console.error("Error refreshing audio signed URL:", error);
+    }
+  }
+
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
     message: "Blog details retrieved successfully",
-    data: result,
+    data: blog,
   });
 });
 
 // Public route - only returns published blogs
 const getWebsiteBlogById = catchAsync(async (req, res) => {
-  const result = await blogService.getByIdFromDb(req.params.id, true);
+  const blog = await blogService.getByIdFromDb(req.params.id, true);
+
+  // Refresh signed URL if blog has audio file
+  if (blog && blog.audioFileName) {
+    try {
+      const freshSignedUrl = await refreshSignedUrl(blog.audioFileName);
+      blog.audioSignedUrl = freshSignedUrl;
+    } catch (error) {
+      console.error("Error refreshing audio signed URL:", error);
+    }
+  }
+
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
     message: "Blog details retrieved successfully",
-    data: result,
+    data: blog,
   });
 });
 
 const updateBlog = catchAsync(
   async (req: Request & { file?: Express.Multer.File }, res: Response) => {
     const updateData = req.body;
+    const blogId = req.params.id;
 
+    // Get existing blog to check for old audio file
+    const existingBlog = await Blog.findById(blogId);
+    if (!existingBlog) {
+      sendResponse(res, {
+        statusCode: httpStatus.NOT_FOUND,
+        success: false,
+        message: "Blog not found",
+        data: null,
+      });
+      return;
+    }
+
+    // Handle new audio file upload
     if (req.file) {
       try {
-        if (req.file.mimetype.startsWith("image/")) {
-          const uploadResult = await fileUploader.uploadToCloudinary(
-            req.file,
-            "blogs"
-          );
-          updateData.coverImage = uploadResult.Location;
-        } else {
-          updateData.coverImage = req.file.path || req.file.filename;
+        // Upload new audio file to GCS
+        const uploadResult = await uploadBlogAudio(req.file);
+        updateData.audioUrl = uploadResult.publicUrl;
+        updateData.audioSignedUrl = uploadResult.signedUrl;
+        updateData.audioFileName = uploadResult.fileName;
+        updateData.audioSize = uploadResult.fileSize;
+        updateData.audioFormat = uploadResult.contentType;
+
+        // Delete old audio file from GCS after successful upload
+        if (existingBlog.audioFileName) {
+          await deleteBlogAudio(existingBlog.audioFileName);
         }
       } catch (error) {
-        console.error("Error uploading file:", error);
-        throw new Error("Error uploading file. Please try again.");
+        console.error("Error uploading audio file:", error);
+        throw new Error("Error uploading audio file. Please try again.");
       }
     }
 
-    const result = await blogService.updateIntoDb(req.params.id, updateData);
+    const result = await blogService.updateIntoDb(blogId, updateData);
     sendResponse(res, {
       statusCode: httpStatus.OK,
       success: true,
@@ -136,11 +185,34 @@ const updateBlog = catchAsync(
 );
 
 const deleteBlog = catchAsync(async (req, res) => {
-  const result = await blogService.deleteItemFromDb(req.params.id);
+  const blogId = req.params.id;
+
+  // Get blog to retrieve audio file info before deletion
+  const blog = await Blog.findById(blogId);
+  if (!blog) {
+    sendResponse(res, {
+      statusCode: httpStatus.NOT_FOUND,
+      success: false,
+      message: "Blog not found",
+      data: null,
+    });
+    return;
+  }
+
+  // Delete audio file from GCS if exists
+  if (blog.audioFileName) {
+    try {
+      await deleteBlogAudio(blog.audioFileName);
+    } catch (error) {
+      console.error("Error deleting audio from GCS:", error);
+    }
+  }
+
+  const result = await blogService.deleteItemFromDb(blogId);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
-    message: "Blog and associated images deleted successfully",
+    message: "Blog and associated audio deleted successfully",
     data: result,
   });
 });

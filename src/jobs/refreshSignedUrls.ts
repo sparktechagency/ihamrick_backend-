@@ -1,6 +1,7 @@
 import cron from "node-cron";
 import { Video } from "../app/modules/videos/videos.model";
 import Podcast from "../app/modules/podcast/podcast.model";
+import { Blog } from "../app/modules/blog/blog.model";
 import { refreshSignedUrl } from "../helpers/googleCloudStorage";
 import audioStreamService from "../app/modules/podcast/audioStreamService";
 
@@ -82,13 +83,57 @@ const refreshPodcastSignedUrls = async (): Promise<void> => {
 };
 
 /**
- * Refresh all signed URLs (videos + podcasts)
+ * Refresh signed URLs for all blog audio files in the database
+ */
+const refreshBlogAudioSignedUrls = async (): Promise<void> => {
+  try {
+    console.log("🔄 Starting blog audio signed URL refresh job...");
+
+    const blogs = await Blog.find({
+      audioFileName: { $exists: true, $ne: null },
+    });
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const blog of blogs) {
+      try {
+        const freshSignedUrl = await refreshSignedUrl(blog.audioFileName!);
+        blog.audioSignedUrl = freshSignedUrl;
+        await blog.save();
+        successCount++;
+      } catch (error: any) {
+        console.error(
+          `Failed to refresh signed URL for blog ${blog._id}:`,
+          error.message
+        );
+        errorCount++;
+      }
+    }
+
+    console.log(
+      `✅ Blog audio signed URL refresh completed: ${successCount} successful, ${errorCount} failed`
+    );
+  } catch (error: any) {
+    console.error(
+      "❌ Error in blog audio signed URL refresh job:",
+      error.message
+    );
+  }
+};
+
+/**
+ * Refresh all signed URLs (videos + podcasts + blogs)
  */
 const refreshAllSignedUrls = async (): Promise<void> => {
   console.log("📅 Running scheduled signed URL refresh job...");
   const startTime = Date.now();
 
-  await Promise.all([refreshVideoSignedUrls(), refreshPodcastSignedUrls()]);
+  await Promise.all([
+    refreshVideoSignedUrls(),
+    refreshPodcastSignedUrls(),
+    refreshBlogAudioSignedUrls(),
+  ]);
 
   const duration = ((Date.now() - startTime) / 1000).toFixed(2);
   console.log(`⏱️  Signed URL refresh job completed in ${duration}s`);
@@ -118,5 +163,6 @@ export const startSignedUrlRefreshJob = (): void => {
 export {
   refreshVideoSignedUrls,
   refreshPodcastSignedUrls,
+  refreshBlogAudioSignedUrls,
   refreshAllSignedUrls,
 };

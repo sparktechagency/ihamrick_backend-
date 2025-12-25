@@ -12,7 +12,7 @@ const router = express.Router();
 router.post(
   "/create-blog",
   auth(UserRole.ADMIN),
-  fileUploader.upload.single("coverImage"),
+  fileUploader.upload.single("audio"),
   validateRequest(blogValidation.createSchema),
   blogController.createBlog
 );
@@ -20,7 +20,7 @@ router.post(
 router.put(
   "/update/:id",
   auth(UserRole.ADMIN),
-  fileUploader.upload.single("coverImage"),
+  fileUploader.upload.single("audio"),
   validateRequest(blogValidation.updateSchema),
   blogController.updateBlog
 );

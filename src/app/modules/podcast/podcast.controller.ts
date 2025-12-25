@@ -63,7 +63,7 @@ export const createPodcast = catchAsync(
 // Get all podcasts with filtering, pagination, and sorting
 export const getAllPodcasts = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
-    const { status, page, limit, sort = "-createdAt", search } = req.query;
+    const { status, page, limit, sortBy, sortOrder, search } = req.query;
 
     const filter: any = {};
 
@@ -82,9 +82,26 @@ export const getAllPodcasts = catchAsync(
     const pageNum = page ? parseInt(page as string, 10) : 1;
     const limitNum = limit ? parseInt(limit as string, 10) : 0;
 
+    // Build sort conditions - supports title, date (createdAt), and duration
+    const sortConditions: { [key: string]: 1 | -1 } = {};
+    if (sortBy && sortOrder) {
+      const sortField = sortBy as string;
+      // Map user-friendly field names to model fields
+      const fieldMap: { [key: string]: string } = {
+        title: "title",
+        date: "createdAt",
+        createdAt: "createdAt",
+        duration: "duration",
+      };
+      const mappedField = fieldMap[sortField] || sortField;
+      sortConditions[mappedField] = sortOrder === "asc" ? 1 : -1;
+    } else {
+      sortConditions.createdAt = -1; // Default: newest first
+    }
+
     let query = Podcast.find(filter)
       .populate("admin", "firstName lastName email profilePicture")
-      .sort(sort as string);
+      .sort(sortConditions);
 
     if (limitNum > 0) {
       query = query.skip((pageNum - 1) * limitNum).limit(limitNum);
@@ -501,18 +518,36 @@ export const getLivePodcast = catchAsync(
 // Get recorded podcasts
 export const getRecordedPodcasts = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
-    const { page, limit } = req.query;
+    const { page, limit, sortBy, sortOrder } = req.query;
 
     // Only apply pagination if page or limit is provided
     const pageNum = page ? parseInt(page as string, 10) : 1;
     const limitNum = limit ? parseInt(limit as string, 10) : 0;
+
+    // Build sort conditions - supports title, date (actualEnd), and duration
+    const sortConditions: { [key: string]: 1 | -1 } = {};
+    if (sortBy && sortOrder) {
+      const sortField = sortBy as string;
+      // Map user-friendly field names to model fields
+      const fieldMap: { [key: string]: string } = {
+        title: "title",
+        date: "actualEnd",
+        createdAt: "createdAt",
+        actualEnd: "actualEnd",
+        duration: "duration",
+      };
+      const mappedField = fieldMap[sortField] || sortField;
+      sortConditions[mappedField] = sortOrder === "asc" ? 1 : -1;
+    } else {
+      sortConditions.actualEnd = -1; // Default: newest first
+    }
 
     let query = Podcast.find({
       status: PodcastStatus.ENDED,
       recordedAudioUrl: { $exists: true, $ne: null },
     })
       .populate("admin", "firstName lastName email profilePicture")
-      .sort("-actualEnd");
+      .sort(sortConditions);
 
     if (limitNum > 0) {
       query = query.skip((pageNum - 1) * limitNum).limit(limitNum);

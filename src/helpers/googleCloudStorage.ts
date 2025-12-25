@@ -350,6 +350,59 @@ export const uploadPublicationImage = async (
   return uploadToGCS(file, folder);
 };
 
+// Upload audio file for blogs with validation
+export const uploadBlogAudio = async (
+  file: Express.Multer.File
+): Promise<UploadResult> => {
+  const allowedMimeTypes = [
+    "audio/mpeg", // mp3
+    "audio/mp3", // mp3 alternate
+    "audio/wav", // wav
+    "audio/wave", // wav alternate
+    "audio/x-wav", // wav alternate
+    "audio/ogg", // ogg
+    "audio/webm", // webm
+    "audio/aac", // aac
+    "audio/m4a", // m4a
+    "audio/x-m4a", // m4a alternate
+    "audio/mp4", // mp4 audio
+  ];
+
+  if (!allowedMimeTypes.includes(file.mimetype)) {
+    throw new Error(
+      "Invalid file type. Only MP3, WAV, OGG, WebM, AAC, and M4A audio files are allowed."
+    );
+  }
+
+  // Max 500MB for audio files
+  const maxAudioSize = 500 * 1024 * 1024;
+  if (file.size > maxAudioSize) {
+    throw new Error(`Audio file size exceeds the maximum limit of 500MB`);
+  }
+
+  return uploadToGCS(file, "blog-audio");
+};
+
+// Delete blog audio from GCS
+export const deleteBlogAudio = async (fileName: string): Promise<boolean> => {
+  try {
+    if (!fileName) {
+      return false;
+    }
+
+    await bucket.file(fileName).delete();
+    console.log(`Blog audio deleted from GCS: ${fileName}`);
+    return true;
+  } catch (error: any) {
+    if (error.code === 404) {
+      console.log("Blog audio not found in GCS, might be already deleted");
+      return true;
+    }
+    console.error("Error deleting blog audio from GCS:", error);
+    return false;
+  }
+};
+
 // Check if GCS is properly configured and accessible
 // Uses getFiles instead of bucket.exists() to avoid needing storage.buckets.get permission
 export const testConnection = async (): Promise<boolean> => {
@@ -382,5 +435,8 @@ export const googleCloudStorage = {
   uploadVideo,
   uploadDocument,
   uploadPublicationImage,
+  uploadBlogAudio,
+  deleteBlogAudio,
+  refreshSignedUrl,
   testConnection,
 };

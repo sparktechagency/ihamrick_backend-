@@ -12,6 +12,13 @@ interface IBlogCreateData {
   status?: BlogStatus;
   scheduledAt?: string;
   coverImage?: string;
+  // Audio fields
+  audioUrl?: string;
+  audioSignedUrl?: string;
+  audioFileName?: string;
+  audioSize?: number;
+  audioFormat?: string;
+  audioDuration?: number;
 }
 
 const createIntoDb = async (blogData: IBlogCreateData) => {
@@ -20,6 +27,13 @@ const createIntoDb = async (blogData: IBlogCreateData) => {
     description: blogData.description,
     status: blogData.status || BlogStatus.PUBLISHED,
     coverImage: blogData.coverImage,
+    // Audio fields
+    audioUrl: blogData.audioUrl,
+    audioSignedUrl: blogData.audioSignedUrl,
+    audioFileName: blogData.audioFileName,
+    audioSize: blogData.audioSize,
+    audioFormat: blogData.audioFormat,
+    audioDuration: blogData.audioDuration,
   };
 
   // Handle scheduled blogs
@@ -169,6 +183,13 @@ interface IBlogUpdateData {
   status?: BlogStatus;
   scheduledAt?: string | null;
   coverImage?: string;
+  // Audio fields
+  audioUrl?: string;
+  audioSignedUrl?: string;
+  audioFileName?: string;
+  audioSize?: number;
+  audioFormat?: string;
+  audioDuration?: number;
 }
 
 const updateIntoDb = async (id: string, data: IBlogUpdateData) => {
@@ -185,6 +206,17 @@ const updateIntoDb = async (id: string, data: IBlogUpdateData) => {
   if (data.uploadDate !== undefined)
     updateData.uploadDate = new Date(data.uploadDate);
   if (data.coverImage !== undefined) updateData.coverImage = data.coverImage;
+
+  // Audio fields
+  if (data.audioUrl !== undefined) updateData.audioUrl = data.audioUrl;
+  if (data.audioSignedUrl !== undefined)
+    updateData.audioSignedUrl = data.audioSignedUrl;
+  if (data.audioFileName !== undefined)
+    updateData.audioFileName = data.audioFileName;
+  if (data.audioSize !== undefined) updateData.audioSize = data.audioSize;
+  if (data.audioFormat !== undefined) updateData.audioFormat = data.audioFormat;
+  if (data.audioDuration !== undefined)
+    updateData.audioDuration = data.audioDuration;
 
   // Handle status change
   if (data.status !== undefined) {
@@ -228,7 +260,8 @@ const deleteItemFromDb = async (id: string) => {
     throw new ApiError(httpStatus.NOT_FOUND, "Blog not found");
   }
 
-  // Delete cover image from Cloudinary if exists
+  // Note: Audio file deletion is handled in the controller before this call
+  // Cover image from Cloudinary deletion (if still using coverImage)
   if (blog.coverImage) {
     try {
       const { fileUploader } = await import("../../../helpers/fileUploader");
