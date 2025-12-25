@@ -231,7 +231,7 @@ const getVideosList = catchAsync(async (req: Request, res: Response) => {
     sortOrder: sortOrder as string,
   };
 
-  // Public route - only show available videos (status: true)
+  // Public route - only show published videos
   const result = await videosService.getListFromDb(
     filters,
     paginationOptions,
@@ -242,6 +242,40 @@ const getVideosList = catchAsync(async (req: Request, res: Response) => {
     statusCode: httpStatus.OK,
     success: true,
     message: "Videos retrieved successfully",
+    meta: result.meta,
+    data: result.data,
+  });
+});
+
+// Admin route - Get all videos (published and unpublished)
+const getAdminVideosList = catchAsync(async (req: Request, res: Response) => {
+  const { searchTerm, status, uploadDate, page, limit, sortBy, sortOrder } =
+    req.query;
+
+  const filters = {
+    searchTerm: searchTerm as string,
+    status: status as string,
+    uploadDate: uploadDate as string,
+  };
+
+  const paginationOptions = {
+    page: page ? Number(page) : undefined,
+    limit: limit ? Number(limit) : undefined,
+    sortBy: sortBy as string,
+    sortOrder: sortOrder as string,
+  };
+
+  // Admin route - show all videos (published and unpublished)
+  const result = await videosService.getListFromDb(
+    filters,
+    paginationOptions,
+    false // publicOnly = false
+  );
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "All videos retrieved successfully",
     meta: result.meta,
     data: result.data,
   });
@@ -453,6 +487,7 @@ const deleteVideo = catchAsync(async (req: Request, res: Response) => {
 export const videosController = {
   createVideo,
   getVideosList,
+  getAdminVideosList,
   getVideoById,
   watchVideo,
   updateVideo,
